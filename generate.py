@@ -319,7 +319,8 @@ def generate_package_json(output_dir: Path):
             "tailwind-merge": "^2.5.5",
             "tailwindcss-animate": "^1.0.7",
             "vaul": "^0.9.9",
-            "zod": "3.25.76"
+            "zod": "3.25.76",
+            "@apidevtools/swagger-parser": "^10.1.0"
         },
         "devDependencies": {
             "@tailwindcss/postcss": "^4.1.9",
@@ -606,14 +607,71 @@ export default function ApiPlaygroundPage() {
         f.write(page_content)
     print(f"    DEBUG: page.tsx written successfully")
 
+def dereference_openapi_spec(spec: Dict[str, Any], temp_spec_path: Path) -> Dict[str, Any]:
+    """Dereference OpenAPI spec using @apidevtools/swagger-parser via Node.js script."""
+    import tempfile
+    
+    # Write spec to temp file
+    with open(temp_spec_path, 'w') as f:
+        json.dump(spec, f, indent=2)
+    
+    # Create temp output file
+    temp_output = temp_spec_path.parent / f"{temp_spec_path.stem}_dereferenced.json"
+    
+    # Call Node.js script to dereference using npx (installs package if needed)
+    script_path = Path(__file__).parent / 'scripts' / 'dereference-spec.js'
+    try:
+        # Use npx to run the script, which will install @apidevtools/swagger-parser if needed
+        result = subprocess.run(
+            ['npx', '--yes', '--package=@apidevtools/swagger-parser', 'node', str(script_path), str(temp_spec_path), str(temp_output)],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        print(f"  ✓ Spec dereferenced using @apidevtools/swagger-parser")
+        
+        # Read dereferenced spec
+        with open(temp_output, 'r') as f:
+            dereferenced = json.load(f)
+        
+        # Clean up temp files
+        temp_output.unlink()
+        return dereferenced
+    except subprocess.CalledProcessError as e:
+        print(f"  ⚠ Warning: Failed to dereference spec: {e.stderr}")
+        print(f"  Continuing with original spec (may have unresolved $refs)")
+        return spec
+    except FileNotFoundError:
+        print(f"  ⚠ Warning: Node.js not found. Cannot dereference spec.")
+        print(f"  Continuing with original spec (may have unresolved $refs)")
+        return spec
+
 def copy_openapi_spec(output_dir: Path, spec: Dict[str, Any]):
-    """Copy the OpenAPI spec to the output directory."""
+    """Copy the OpenAPI spec to the output directory (dereferenced)."""
     out_dir = get_output_dir(output_dir, use_temp=True)
     spec_path = out_dir / 'openapi.json'
-    print(f"    DEBUG: Writing openapi.json to {spec_path}")
-    with open(spec_path, 'w') as f:
-        json.dump(spec, f, indent=2)
-    print(f"    DEBUG: openapi.json written successfully")
+    
+    # Create temp file for dereferencing
+    import tempfile
+    temp_dir = Path(tempfile.gettempdir())
+    temp_spec_path = temp_dir / f"openapi_temp_{os.getpid()}.json"
+    
+    try:
+        # Dereference the spec
+        dereferenced_spec = dereference_openapi_spec(spec, temp_spec_path)
+        
+        # Write dereferenced spec to output
+        print(f"    DEBUG: Writing dereferenced openapi.json to {spec_path}")
+        with open(spec_path, 'w') as f:
+            json.dump(dereferenced_spec, f, indent=2)
+        print(f"    DEBUG: openapi.json written successfully")
+    finally:
+        # Clean up temp file
+        if temp_spec_path.exists():
+            try:
+                temp_spec_path.unlink()
+            except Exception:
+                pass
 
 def generate_readme(output_dir: Path):
     """Generate README.md."""

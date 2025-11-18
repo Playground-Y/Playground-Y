@@ -33,6 +33,7 @@ interface CodeEditorProps {
   apiResponse?: any
   isLoading?: boolean
   error?: string | null
+  endpointKey?: string // Add endpointKey to force remount
 }
 
 export function CodeEditor({ 
@@ -43,11 +44,22 @@ export function CodeEditor({
   spec,
   apiResponse,
   isLoading,
-  error
+  error,
+  endpointKey
 }: CodeEditorProps) {
   const [activeTab, setActiveTab] = useState<'code' | 'output'>('code')
   const [activeLanguage, setActiveLanguage] = useState(defaultLanguage || initialCodeSamples[0]?.language || 'python')
   const [isCopied, setIsCopied] = useState(false)
+
+  // Clear response when it becomes null/undefined (endpoint changed)
+  useEffect(() => {
+    console.log('[DEBUG] CodeEditor apiResponse changed:', apiResponse ? 'has response' : 'null', 'isLoading:', isLoading, 'error:', error)
+    if (!apiResponse && !isLoading && !error) {
+      // Reset to code tab when response is cleared
+      console.log('[DEBUG] CodeEditor: Clearing response, resetting to code tab')
+      setActiveTab('code')
+    }
+  }, [apiResponse, isLoading, error])
 
   // Switch to output tab when Run is pressed (loading starts) or when response is received
   useEffect(() => {
@@ -447,6 +459,10 @@ export function CodeEditor({
               <div className="text-error text-sm">{error}</div>
             </div>
           )}
+          {(() => {
+            console.log('[DEBUG] CodeEditor render check - apiResponse:', apiResponse ? `has response (status: ${apiResponse.status})` : 'null', 'isLoading:', isLoading, 'activeTab:', activeTab)
+            return null
+          })()}
           {apiResponse && !isLoading && (
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
@@ -474,6 +490,7 @@ export function CodeEditor({
                 </button>
               </div>
               <Editor
+                key={`response-editor-${endpointKey || 'default'}-${apiResponse.status}`} // Force remount when endpoint or status changes
                 height="calc(100vh - 200px)"
                 language={typeof apiResponse.data === 'string' ? 'plaintext' : 'json'}
                 value={apiResponse.raw || (typeof apiResponse.data === 'string' ? apiResponse.data : JSON.stringify(apiResponse.data, null, 2))}

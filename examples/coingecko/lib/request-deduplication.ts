@@ -38,13 +38,16 @@ export function generateIdempotencyKey(
   method: string,
   path: string,
   baseUrl: string,
-  data: Record<string, any>
+  data: Record<string, any>,
+  endpointKey?: string // Add endpoint key to ensure uniqueness
 ): string {
   // Create a hash-like key from request parameters
+  // Include endpointKey to ensure different endpoints don't collide
   const keyData = {
     method: method.toUpperCase(),
     path,
     baseUrl,
+    endpointKey: endpointKey || '', // Include endpoint key for uniqueness
     data: JSON.stringify(data || {}),
   }
   // Simple hash (in production, use crypto.createHash)

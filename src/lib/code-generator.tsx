@@ -43,33 +43,8 @@ interface OpenAPISpec {
   }
 }
 
-// Helper function to resolve $ref references
-function resolveRef(spec: OpenAPISpec, ref: string): any {
-  if (!ref.startsWith('#/components/schemas/')) {
-    return null
-  }
-  const schemaName = ref.replace('#/components/schemas/', '')
-  return spec.components?.schemas?.[schemaName] || null
-}
-
-// Helper function to resolve schema (handles both inline and $ref)
-function resolveSchema(spec: OpenAPISpec, schema: any): any {
-  if (!schema) return null
-  
-  // If it's a $ref, resolve it
-  if (schema.$ref) {
-    const resolved = resolveRef(spec, schema.$ref)
-    if (resolved) {
-      // If resolved schema also has $ref, resolve recursively
-      if (resolved.$ref) {
-        return resolveSchema(spec, resolved)
-      }
-      return resolved
-    }
-  }
-  
-  return schema
-}
+// Schema resolution functions removed - spec is already dereferenced by @apidevtools/swagger-parser
+// All $refs are handled by the library
 
 export function generateCodeSamples(
   operation: OpenAPIOperation,
@@ -128,9 +103,9 @@ export function generateCodeSamples(
   if (requestBodyContent && (requestBodyContent as Record<string, any>)[contentType]) {
     const jsonContent = (requestBodyContent as Record<string, any>)[contentType]
     
-    // Resolve $ref if present
+    // Schema is already dereferenced (no $refs)
     const requestBodySchema = jsonContent.schema
-    const resolvedSchema = resolveSchema(spec, requestBodySchema)
+    const resolvedSchema = requestBodySchema
     
     // If we have form values, use them to build the request body
     if (formValues && Object.keys(formValues).length > 0) {
@@ -192,12 +167,8 @@ export function generateCodeSamples(
         requestBody = {}
         
         for (const [name, prop] of Object.entries(properties)) {
+          // Schema is already dereferenced (no $refs)
           let schema = prop as any
-          
-          // Resolve $ref in property schemas
-          if (schema.$ref) {
-            schema = resolveSchema(spec, schema) || schema
-          }
           
           // Handle anyOf
           if (schema.anyOf && Array.isArray(schema.anyOf)) {
@@ -218,12 +189,8 @@ export function generateCodeSamples(
           for (const name of required) {
             const prop = properties[name]
             if (prop) {
+              // Schema is already dereferenced (no $refs)
               let schema = prop as any
-              
-              // Resolve $ref
-              if (schema.$ref) {
-                schema = resolveSchema(spec, schema) || schema
-              }
               
               // Handle anyOf
               if (schema.anyOf && Array.isArray(schema.anyOf)) {

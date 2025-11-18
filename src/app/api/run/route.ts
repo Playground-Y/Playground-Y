@@ -217,6 +217,7 @@ const requestSchema = z.object({
     },
     { message: 'Invalid operation structure' }
   ),
+  endpointKey: z.string().optional(), // Optional endpoint key for deduplication
 })
 
 // Error response structure
@@ -258,7 +259,12 @@ export async function POST(request: NextRequest) {
   // Get client information for logging and rate limiting
   const clientIp = getClientIdentifier(request)
   const userAgent = request.headers.get('user-agent') || 'unknown'
-  const idempotencyKey = request.headers.get('idempotency-key') || generateIdempotencyKey('POST', '/api/run', '', {})
+  
+  // Get endpointKey from header (set by client) for better idempotency key generation
+  const endpointKeyFromHeader = request.headers.get('x-endpoint-key')
+  
+  // Generate idempotency key - will be updated after parsing body to include endpointKey
+  let idempotencyKey = request.headers.get('idempotency-key') || generateIdempotencyKey('POST', '/api/run', '', {}, endpointKeyFromHeader || undefined)
   
   // Check rate limiting
   const rateLimit = checkRateLimit(clientIp, {
@@ -383,7 +389,24 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { method, path, baseUrl, data, contentType, securityScheme, operation } = validationResult.data
+  const { method, path, baseUrl, data, contentType, securityScheme, operation, endpointKey } = validationResult.data
+
+  // Regenerate idempotency key with endpointKey from body (more reliable than header)
+  // This ensures different endpoints don't collide in the deduplication cache
+  if (endpointKey) {
+    idempotencyKey = generateIdempotencyKey(method, path, baseUrl || '', data || {}, endpointKey)
+    // Re-check for duplicates with the correct key
+    const duplicateCheck = checkDuplicate(idempotencyKey)
+    if (duplicateCheck.isDuplicate && duplicateCheck.cachedResponse) {
+      logger.info('Duplicate request detected (with endpoint key), returning cached response', {
+        requestId,
+        idempotencyKey,
+        endpointKey,
+        clientIp,
+      })
+      return NextResponse.json(duplicateCheck.cachedResponse)
+    }
+  }
 
   logger.debug('Request validated', {
     requestId,

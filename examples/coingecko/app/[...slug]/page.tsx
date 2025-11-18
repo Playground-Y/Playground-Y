@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useParams, useRouter, usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/api-playground/sidebar'
 import { ApiPageHeader } from '@/components/api-playground/api-page-header'
@@ -13,6 +13,8 @@ import { parseSidebarConfig } from '@/lib/openapi-sidebar-parser'
 import { findEndpointBySlug, generateSlugFromEndpoint } from '@/lib/slug-utils'
 import { extractDocsUrl } from '@/lib/utils'
 import { FileText } from 'lucide-react'
+// Note: openApiSpec should be dereferenced (all $refs resolved) at generation time
+// using @apidevtools/swagger-parser. The generator script should handle this.
 import openApiSpec from '../../openapi.json'
 import LandingPage from '../landing-page'
 
@@ -34,6 +36,9 @@ export default function SlugPage() {
   const [error, setError] = useState<string | null>(null)
   const [endpointKey, setEndpointKey] = useState<string | undefined>(undefined)
   const [formValues, setFormValues] = useState<Record<string, any>>({})
+  const previousEndpointKeyRef = useRef<string | undefined>(undefined)
+  const currentEndpointKeyRef = useRef<string | undefined>(undefined) // Track current endpoint for race condition checks
+  const abortControllerRef = useRef<AbortController | null>(null) // Track in-flight requests
 
   useEffect(() => {
     // Don't handle empty slug - redirect to root to let page.tsx handle it (landing page)
@@ -44,17 +49,45 @@ export default function SlugPage() {
 
     // Find endpoint by slug
     const foundEndpointKey = findEndpointBySlug(openApiSpec as any, slug)
+    const slugString = Array.isArray(slug) ? slug.join('/') : String(slug)
+    const previousEndpointKey = previousEndpointKeyRef.current
+    console.log('[DEBUG] Slug changed:', slugString, 'Found endpoint key:', foundEndpointKey, 'Previous endpoint key:', previousEndpointKey, 'Current endpoint key:', endpointKey)
+    
     if (!foundEndpointKey) {
       // If not found, redirect to landing page
       router.replace('/')
       return
     }
 
-    setEndpointKey(foundEndpointKey)
-    const config = parseOpenAPIToConfig(openApiSpec as any, foundEndpointKey)
-    setEndpointConfig(config)
-    // Reset form values when endpoint changes
-    setFormValues({})
+    // Only update if endpoint actually changed (not just a re-render)
+    if (foundEndpointKey !== previousEndpointKey) {
+      console.log('[DEBUG] Endpoint changed from', previousEndpointKey, 'to', foundEndpointKey, '- resetting state')
+      previousEndpointKeyRef.current = foundEndpointKey
+      
+      // IMMEDIATELY clear all state before setting new endpoint
+      // Use functional updates to ensure we're clearing the latest state
+      setApiResponse(() => null)
+      setError(() => null)
+      setIsLoading(() => false)
+      setFormValues(() => ({}))
+      
+      // Cancel any in-flight requests for the previous endpoint
+      if (abortControllerRef.current) {
+        console.log('[DEBUG] Cancelling in-flight request for previous endpoint')
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+      
+      // Set new endpoint key and config
+      setEndpointKey(() => foundEndpointKey)
+      currentEndpointKeyRef.current = foundEndpointKey // Update ref immediately
+      const config = parseOpenAPIToConfig(openApiSpec as any, foundEndpointKey)
+      setEndpointConfig(() => config)
+      
+      console.log('[DEBUG] State cleared and new endpoint set:', foundEndpointKey)
+    } else {
+      console.log('[DEBUG] Endpoint unchanged, skipping state reset')
+    }
 
     const sidebar = parseSidebarConfig(
       { 
@@ -168,11 +201,43 @@ export default function SlugPage() {
   }
 
   const handleSubmit = async (data: Record<string, any>, apiKey?: string) => {
+    // Guard: ensure we have endpointKey and endpointConfig
+    if (!endpointKey || !endpointConfig) {
+      setError('Endpoint not loaded. Please wait...')
+      return
+    }
+
+    // Cancel any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+
+    // Store current endpointKey at the start of the request to prevent race conditions
+    // Use ref to get the most current value, not stale closure
+    const currentEndpointKey = currentEndpointKeyRef.current || endpointKey
+    console.log('[DEBUG] handleSubmit called for endpoint:', currentEndpointKey, 'Ref:', currentEndpointKeyRef.current)
+
     setIsLoading(true)
     setError(null)
     setApiResponse(null)
 
     try {
+      // Get method and path from endpointKey to ensure we use the correct endpoint
+      const endpoints = openApiSpec['x-ui-config']?.endpoints as Record<string, any> | undefined
+      if (!endpoints || !endpoints[endpointKey]) {
+        setError('Endpoint configuration not found')
+        setIsLoading(false)
+        return
+      }
+      
+      const uiConfig = endpoints[endpointKey]
+      const method = uiConfig.method as string
+      const path = uiConfig.path as string
+
       // Get content type from requestBody content (default to application/json)
       const requestBodyContent = operation?.requestBody?.content
       const contentType = requestBodyContent 
@@ -226,21 +291,30 @@ export default function SlugPage() {
       try {
         response = await fetch('/api/run', {
           method: 'POST',
+          signal: abortController.signal, // Add abort signal to cancel if endpoint changes
           headers: {
             'Content-Type': 'application/json',
+            'X-Endpoint-Key': currentEndpointKey, // Include endpoint key in header for deduplication
             ...(apiKey && authHeaderName ? { [authHeaderName]: securityScheme?.type === 'http' && securityScheme?.scheme === 'bearer' ? `Bearer ${apiKey}` : apiKey } : {}),
           },
           body: JSON.stringify({
-            method: endpointConfig.method,
-            path: endpointConfig.path,
+            method: method,
+            path: path,
             data: data,
             baseUrl: openApiSpec.servers?.[0]?.url || '',
             contentType,
             securityScheme,
             operation, // Pass the operation so API route can check for required params
+            endpointKey: currentEndpointKey, // Include endpoint key in body for deduplication
           }),
         })
       } catch (networkError: unknown) {
+        // Check if request was aborted (endpoint changed)
+        if (abortController.signal.aborted) {
+          console.log('[DEBUG] Request aborted - endpoint changed during request')
+          return // Don't set error or response, just return silently
+        }
+        
         // Handle network errors (fetch failed - no connection, CORS, etc.)
         let errorMessage = 'Network error: Could not reach the server'
         
@@ -256,7 +330,10 @@ export default function SlugPage() {
           errorMessage = `Network error: ${networkError}`
         }
         
-        setError(errorMessage)
+        // Only set error if we're still on the same endpoint
+        if (currentEndpointKey === currentEndpointKeyRef.current) {
+          setError(errorMessage)
+        }
         return
       }
 
@@ -301,7 +378,22 @@ export default function SlugPage() {
         return
       }
 
-      setApiResponse(result)
+      // Only set response if we're still on the same endpoint (prevent race conditions)
+      // Check if request was aborted
+      if (abortController.signal.aborted) {
+        console.log('[DEBUG] Request was aborted - ignoring response')
+        return
+      }
+      
+      // Double-check by comparing with the ref (most reliable source of truth)
+      const currentRefEndpoint = currentEndpointKeyRef.current
+      if (currentEndpointKey === currentRefEndpoint) {
+        console.log('[DEBUG] Setting API response for endpoint:', currentEndpointKey, 'Method:', method, 'Path:', path, 'Response status:', result?.status)
+        setApiResponse(() => result)
+        abortControllerRef.current = null // Clear abort controller on success
+      } else {
+        console.log('[DEBUG] Ignoring API response - endpoint changed. Request was for:', currentEndpointKey, 'Current ref:', currentRefEndpoint)
+      }
     } catch (err: unknown) {
       // Handle any other unexpected errors
       let errorMessage = 'An unexpected error occurred while making the API request'
@@ -677,12 +769,14 @@ export default function SlugPage() {
                   {
                     label: 'Copy for AI',
                     icon: (
-                      <div className="flex items-center -space-x-1 mr-2 h-6">
+                      <div className="flex items-center -space-x-1 mr-2 h-6 shrink-0">
                         <img 
                           src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" 
                           alt="ChatGPT" 
-                          className="w-6 h-6 object-contain relative z-10"
+                          className="w-6 h-6 object-contain relative z-10 shrink-0 flex-shrink-0"
+                          onLoad={() => console.log('[DEBUG] ChatGPT logo loaded')}
                           onError={(e) => {
+                            console.error('[DEBUG] ChatGPT logo failed to load', e)
                             const target = e.target as HTMLImageElement
                             target.style.display = 'none'
                           }}
@@ -690,19 +784,33 @@ export default function SlugPage() {
                         <img 
                           src="https://www.anthropic.com/images/anthropic-logo.svg" 
                           alt="Anthropic" 
-                          className="w-6 h-6 object-contain relative z-0"
+                          className="w-6 h-6 object-contain relative z-0 shrink-0 flex-shrink-0"
+                          onLoad={() => console.log('[DEBUG] Anthropic logo loaded')}
                           onError={(e) => {
+                            console.error('[DEBUG] Anthropic logo failed, trying favicon', e)
                             const target = e.target as HTMLImageElement
                             target.src = 'https://www.anthropic.com/favicon.ico'
+                            target.onload = () => console.log('[DEBUG] Anthropic favicon loaded')
+                            target.onerror = () => {
+                              console.error('[DEBUG] Anthropic favicon also failed')
+                              target.style.display = 'none'
+                            }
                           }}
                         />
                         <img 
                           src="https://www.gstatic.com/lamda/images/gemini_sparkle_v2_delta_v2.svg" 
                           alt="Gemini" 
-                          className="w-6 h-6 object-contain relative"
+                          className="w-6 h-6 object-contain relative shrink-0 flex-shrink-0"
+                          onLoad={() => console.log('[DEBUG] Gemini logo loaded')}
                           onError={(e) => {
+                            console.error('[DEBUG] Gemini logo failed, trying favicon', e)
                             const target = e.target as HTMLImageElement
                             target.src = 'https://www.google.com/favicon.ico'
+                            target.onload = () => console.log('[DEBUG] Gemini favicon loaded')
+                            target.onerror = () => {
+                              console.error('[DEBUG] Gemini favicon also failed')
+                              target.style.display = 'none'
+                            }
                           }}
                         />
                       </div>
@@ -713,12 +821,14 @@ export default function SlugPage() {
                   {
                     label: 'Copy for AI',
                     icon: (
-                      <div className="flex items-center -space-x-1 mr-2 h-6">
+                      <div className="flex items-center -space-x-1 mr-2 h-6 shrink-0">
                         <img 
                           src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" 
                           alt="ChatGPT" 
-                          className="w-6 h-6 object-contain relative z-10"
+                          className="w-6 h-6 object-contain relative z-10 shrink-0 flex-shrink-0"
+                          onLoad={() => console.log('[DEBUG] ChatGPT logo loaded')}
                           onError={(e) => {
+                            console.error('[DEBUG] ChatGPT logo failed to load', e)
                             const target = e.target as HTMLImageElement
                             target.style.display = 'none'
                           }}
@@ -726,19 +836,33 @@ export default function SlugPage() {
                         <img 
                           src="https://www.anthropic.com/images/anthropic-logo.svg" 
                           alt="Anthropic" 
-                          className="w-6 h-6 object-contain relative z-0"
+                          className="w-6 h-6 object-contain relative z-0 shrink-0 flex-shrink-0"
+                          onLoad={() => console.log('[DEBUG] Anthropic logo loaded')}
                           onError={(e) => {
+                            console.error('[DEBUG] Anthropic logo failed, trying favicon', e)
                             const target = e.target as HTMLImageElement
                             target.src = 'https://www.anthropic.com/favicon.ico'
+                            target.onload = () => console.log('[DEBUG] Anthropic favicon loaded')
+                            target.onerror = () => {
+                              console.error('[DEBUG] Anthropic favicon also failed')
+                              target.style.display = 'none'
+                            }
                           }}
                         />
                         <img 
                           src="https://www.gstatic.com/lamda/images/gemini_sparkle_v2_delta_v2.svg" 
                           alt="Gemini" 
-                          className="w-6 h-6 object-contain relative"
+                          className="w-6 h-6 object-contain relative shrink-0 flex-shrink-0"
+                          onLoad={() => console.log('[DEBUG] Gemini logo loaded')}
                           onError={(e) => {
+                            console.error('[DEBUG] Gemini logo failed, trying favicon', e)
                             const target = e.target as HTMLImageElement
                             target.src = 'https://www.google.com/favicon.ico'
+                            target.onload = () => console.log('[DEBUG] Gemini favicon loaded')
+                            target.onerror = () => {
+                              console.error('[DEBUG] Gemini favicon also failed')
+                              target.style.display = 'none'
+                            }
                           }}
                         />
                       </div>
@@ -749,6 +873,7 @@ export default function SlugPage() {
               />
 
               <ApiForm
+                key={`form-${endpointKey}`} // Force remount when endpoint changes
                 urlField={endpointConfig.urlField}
                 formFields={endpointConfig.formFields}
                 onSubmit={handleSubmit}
@@ -761,16 +886,23 @@ export default function SlugPage() {
             </div>
           }
           right={
-            <CodeEditor 
-              codeSamples={endpointConfig.codeSamples}
-              defaultLanguage="python"
-              formValues={formValues}
-              operation={operation}
-              spec={spec}
-              apiResponse={apiResponse}
-              isLoading={isLoading}
-              error={error}
-            />
+            (() => {
+              console.log('[DEBUG] Rendering CodeEditor with endpointKey:', endpointKey, 'apiResponse:', apiResponse ? 'has response' : 'null', 'isLoading:', isLoading)
+              return (
+                <CodeEditor 
+                  key={endpointKey} // Force remount when endpoint changes
+                  endpointKey={endpointKey} // Pass endpointKey as prop for internal use
+                  codeSamples={endpointConfig.codeSamples}
+                  defaultLanguage="python"
+                  formValues={formValues}
+                  operation={operation}
+                  spec={spec}
+                  apiResponse={apiResponse}
+                  isLoading={isLoading}
+                  error={error}
+                />
+              )
+            })()
           }
         />
       </div>

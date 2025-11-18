@@ -66,78 +66,57 @@ interface OpenAPISpec {
   }
 }
 
-function resolveRef(spec: OpenAPISpec, ref: string): any {
-  if (!ref.startsWith('#/components/schemas/')) return null
-  return spec.components?.schemas?.[ref.replace('#/components/schemas/', '')] || null
-}
+// Schema resolution functions removed - spec is already dereferenced by @apidevtools/swagger-parser
+// All $refs and allOf merging are handled by the library
 
-function resolveSchema(spec: OpenAPISpec, schema: any): any {
-  if (!schema) return null
-  if (schema.$ref) {
-    const resolved = resolveRef(spec, schema.$ref)
-    return resolved?.$ref ? resolveSchema(spec, resolved) : resolved
-  }
-  return schema
-}
-
-function pickVariant(spec: OpenAPISpec, variants: any[]): any {
+function pickVariant(variants: any[]): any {
   if (!variants?.length) return null
+  // Spec is already dereferenced, so variants are already resolved objects
   const checks = [
-    (r: any) => r.type === 'array' && r.items && (resolveSchema(spec, r.items)?.type === 'object' || resolveSchema(spec, r.items)?.properties),
+    (r: any) => r.type === 'array' && r.items && (r.items?.type === 'object' || r.items?.properties),
     (r: any) => r.type === 'object' || r.properties,
     (r: any) => r.type === 'array',
     (r: any) => r.type !== 'null'
   ]
   for (const check of checks) {
     for (const variant of variants) {
-      const resolved = resolveSchema(spec, variant)
-      if (resolved && check(resolved)) return resolved
+      // Variant is already resolved (no $ref), just check it directly
+      if (variant && check(variant)) return variant
     }
   }
   return null
 }
 
-function mergeAllOf(spec: OpenAPISpec, allOf: any[]): any {
-        const merged: any = { properties: {}, required: [] }
-  for (const subSchema of allOf) {
-    const resolved = resolveSchema(spec, subSchema)
-    if (resolved?.properties) merged.properties = { ...merged.properties, ...resolved.properties }
-    if (resolved?.required) merged.required = [...merged.required, ...resolved.required]
-  }
-  return merged
-}
-
-function mergeContentPartTypes(spec: OpenAPISpec, parentSchema: any): any {
+function mergeContentPartTypes(parentSchema: any): any {
   // Check if parent schema has discriminator-based anyOf
   if (!parentSchema?.anyOf || !parentSchema?.discriminator) return null
   
-  const allContentPartRefs = new Set<string>()
+  // After dereferencing, variants are already resolved objects (no $ref strings)
+  // Collect all content part schemas from all variants
+  const allContentPartSchemas: any[] = []
   
-  // Collect all content part types from all variants
   for (const variant of parentSchema.anyOf) {
-    const resolved = resolveSchema(spec, variant)
-    if (!resolved || resolved.type !== 'object') continue
+    // Variant is already resolved (no $ref), just check it directly
+    if (!variant || variant.type !== 'object') continue
     
-    const contentProp = resolved.properties?.content
+    const contentProp = variant.properties?.content
     if (!contentProp) continue
     
     // Check if content has anyOf with array variant
     if (contentProp.anyOf) {
       for (const contentVariant of contentProp.anyOf) {
         if (contentVariant.type === 'array' && contentVariant.items) {
-          const itemsRef = contentVariant.items.$ref
-          if (itemsRef) {
-            const itemsSchema = resolveSchema(spec, contentVariant.items)
-            // If items schema has anyOf, collect all variants
-            if (itemsSchema?.anyOf) {
-              for (const itemVariant of itemsSchema.anyOf) {
-                const itemRef = itemVariant.$ref
-                if (itemRef) allContentPartRefs.add(itemRef)
-              }
-            } else {
-              // Single content part type
-              allContentPartRefs.add(itemsRef)
+          // items is already resolved (no $ref), just collect the schema
+          const itemsSchema = contentVariant.items
+          // If items schema has anyOf, collect all variants
+          if (itemsSchema?.anyOf) {
+            for (const itemVariant of itemsSchema.anyOf) {
+              // itemVariant is already resolved
+              allContentPartSchemas.push(itemVariant)
             }
+          } else {
+            // Single content part type
+            allContentPartSchemas.push(itemsSchema)
           }
         }
       }
@@ -146,41 +125,37 @@ function mergeContentPartTypes(spec: OpenAPISpec, parentSchema: any): any {
   
   // If we found multiple content part types, preserve the anyOf structure
   // This is a discriminated union - each type has different properties
-  if (allContentPartRefs.size > 1) {
-    // Return the anyOf structure with all variants
-    // The discriminator is on 'type', so the UI can show all type options
-    // and conditionally show fields based on selected type
+  if (allContentPartSchemas.length > 1) {
     return {
-      anyOf: Array.from(allContentPartRefs).map(ref => ({ $ref: ref })),
+      anyOf: allContentPartSchemas,
       discriminator: {
         propertyName: 'type'
       }
     }
-  } else if (allContentPartRefs.size === 1) {
-    return { $ref: Array.from(allContentPartRefs)[0] }
+  } else if (allContentPartSchemas.length === 1) {
+    return allContentPartSchemas[0]
   }
   
   return null
 }
 
-function normalizeSchema(spec: OpenAPISpec, schema: any, parentSchema?: any): any {
-  let s = resolveSchema(spec, schema)
-  if (!s) return null
-  if (s.allOf) s = { ...s, ...mergeAllOf(spec, s.allOf) }
+function normalizeSchema(schema: any): any {
+  // Spec is already dereferenced, so schema has no $refs and allOf is already merged
+  if (!schema) return null
   
   // Handle discriminator-based anyOf specially
-  if (s.anyOf && s.discriminator) {
+  if (schema.anyOf && schema.discriminator) {
     // For discriminator-based unions, pick a representative variant but preserve discriminator info
-    const picked = pickVariant(spec, s.anyOf)
+    const picked = pickVariant(schema.anyOf)
     if (picked) {
-      s = { ...picked, _discriminator: s.discriminator, _allVariants: s.anyOf }
+      return { ...picked, _discriminator: schema.discriminator, _allVariants: schema.anyOf }
     }
-  } else if (s.anyOf) {
-    s = pickVariant(spec, s.anyOf) || s
+  } else if (schema.anyOf) {
+    return pickVariant(schema.anyOf) || schema
   }
   
-  if (s.oneOf) s = pickVariant(spec, s.oneOf) || s
-  return s
+  if (schema.oneOf) return pickVariant(schema.oneOf) || schema
+  return schema
 }
 
 function formatLabel(name: string): string {
@@ -196,23 +171,23 @@ function getFieldType(schema: any): FormFieldConfig['type'] {
   return 'text'
 }
 
-function processSchemaProperties(spec: OpenAPISpec, schema: any, required: string[] = [], parentName: string = '', parentSchema?: any): FormFieldConfig[] {
-  const resolved = normalizeSchema(spec, schema, parentSchema)
+function processSchemaProperties(schema: any, required: string[] = [], parentName: string = '', parentSchema?: any): FormFieldConfig[] {
+  const resolved = normalizeSchema(schema)
   if (!resolved?.properties) return []
   
   const fields: FormFieldConfig[] = []
   const schemaRequired = resolved.required || required
   
   for (const [name, prop] of Object.entries(resolved.properties)) {
-    // Check if field is nullable before normalization (anyOf with type: 'null')
-    const originalProp = prop as any
-    const resolvedProp = resolveSchema(spec, originalProp)
-    const isNullable = resolvedProp?.anyOf?.some((variant: any) => {
-      const resolvedVariant = resolveSchema(spec, variant)
-      return resolvedVariant?.type === 'null'
+    // Check if field is nullable (anyOf with type: 'null')
+    // Prop is already resolved (no $ref), just check it directly
+    const propSchemaObj = prop as any
+    const isNullable = propSchemaObj?.anyOf?.some((variant: any) => {
+      // Variant is already resolved
+      return variant?.type === 'null'
     }) || false
     
-    let propSchema = normalizeSchema(spec, prop as any, resolved)
+    let propSchema = normalizeSchema(prop as any)
     if (!propSchema) continue
     
     const fieldName = parentName ? `${parentName}.${name}` : name
@@ -223,7 +198,7 @@ function processSchemaProperties(spec: OpenAPISpec, schema: any, required: strin
     if (name === 'content' && resolved._discriminator && resolved._allVariants) {
       // Check if content is an array with items that have anyOf
       if (propSchema.type === 'array' && propSchema.items) {
-        const mergedContentParts = mergeContentPartTypes(spec, { anyOf: resolved._allVariants, discriminator: resolved._discriminator })
+        const mergedContentParts = mergeContentPartTypes({ anyOf: resolved._allVariants, discriminator: resolved._discriminator })
         if (mergedContentParts) {
           // If mergedContentParts has anyOf, it's a discriminated union
           // Preserve the discriminated union structure - don't merge properties
@@ -233,15 +208,15 @@ function processSchemaProperties(spec: OpenAPISpec, schema: any, required: strin
             const allTypeEnums: string[] = []
             
             for (const variant of mergedContentParts.anyOf) {
-              const variantSchema = resolveSchema(spec, variant)
-              if (variantSchema?.properties) {
+              // Variant is already resolved (no $ref)
+              if (variant?.properties) {
                 // Get the type enum value for this variant
-                const typeEnum = variantSchema.properties.type?.enum?.[0]
+                const typeEnum = variant.properties.type?.enum?.[0]
                 if (typeEnum) {
                   allTypeEnums.push(typeEnum)
                   // Process fields for this variant only, excluding the 'type' field
                   // (we'll create it manually to avoid duplicates)
-                  const variantNested = processSchemaProperties(spec, variantSchema, variantSchema.required || [], '')
+                  const variantNested = processSchemaProperties(variant, variant.required || [], '')
                   // Filter out the 'type' field since we're creating it manually
                   variantFields[typeEnum] = variantNested.filter(f => {
                     const fieldName = f.name.split('.').pop() || f.name
@@ -287,9 +262,9 @@ function processSchemaProperties(spec: OpenAPISpec, schema: any, required: strin
             }
           } else {
             // Single content part type, process normally
-            const itemsSchema = normalizeSchema(spec, mergedContentParts)
+            const itemsSchema = normalizeSchema(mergedContentParts)
             if (itemsSchema && (itemsSchema.type === 'object' || itemsSchema.properties)) {
-              const nested = processSchemaProperties(spec, itemsSchema, itemsSchema.required || [], '')
+              const nested = processSchemaProperties(itemsSchema, itemsSchema.required || [], '')
               if (nested.length > 0) {
                 fields.push({
                   name: fieldName,
@@ -311,9 +286,9 @@ function processSchemaProperties(spec: OpenAPISpec, schema: any, required: strin
     
     // Array
     if (propSchema.type === 'array' && propSchema.items) {
-      const itemsSchema = normalizeSchema(spec, propSchema.items, propSchema)
+      const itemsSchema = normalizeSchema(propSchema.items)
       if (itemsSchema && (itemsSchema.type === 'object' || itemsSchema.properties)) {
-        const nested = processSchemaProperties(spec, itemsSchema, itemsSchema.required || [], '', propSchema)
+        const nested = processSchemaProperties(itemsSchema, itemsSchema.required || [], '', propSchema)
         if (nested.length > 0) {
           fields.push({
           name: fieldName,
@@ -355,9 +330,9 @@ function processSchemaProperties(spec: OpenAPISpec, schema: any, required: strin
     
     // Object
     if (propSchema.type === 'object' || propSchema.properties) {
-      const objectSchema = propSchema.type === 'object' ? propSchema : normalizeSchema(spec, propSchema, resolved)
+      const objectSchema = propSchema.type === 'object' ? propSchema : normalizeSchema(propSchema)
       const nested = objectSchema?.properties
-        ? processSchemaProperties(spec, objectSchema, objectSchema.required || [], fieldName, resolved)
+        ? processSchemaProperties(objectSchema, objectSchema.required || [], fieldName, resolved)
         : []
       if (nested.length > 0) {
         fields.push({
@@ -414,7 +389,7 @@ export function parseOpenAPIToConfig(spec: OpenAPISpec, endpointKey: string): Ap
     // Check if array of enums - use multi-select
     let fieldType = getFieldType(paramSchema)
     if (paramSchema.type === 'array' && paramSchema.items) {
-      const itemsSchema = normalizeSchema(spec, paramSchema.items, paramSchema)
+      const itemsSchema = normalizeSchema(paramSchema.items)
       if (itemsSchema && itemsSchema.enum) {
         fieldType = 'multi-select'
       }
@@ -433,7 +408,7 @@ export function parseOpenAPIToConfig(spec: OpenAPISpec, endpointKey: string): Ap
           ? (Array.isArray(paramSchema.default) ? paramSchema.default : [])
           : paramSchema.default,
         options: fieldType === 'multi-select' && paramSchema.items
-          ? normalizeSchema(spec, paramSchema.items, paramSchema)?.enum?.map((val: string) => ({ value: val, label: val }))
+          ? normalizeSchema(paramSchema.items)?.enum?.map((val: string) => ({ value: val, label: val }))
           : paramSchema.enum?.map((val: string) => ({ value: val, label: val })),
         placeholder: paramSchema.type === 'array' 
           ? (param.description || 'Enter comma-separated values')
@@ -449,7 +424,7 @@ export function parseOpenAPIToConfig(spec: OpenAPISpec, endpointKey: string): Ap
     : null
   const requestBodySchema = contentType && requestBodyContent ? (requestBodyContent as Record<string, any>)[contentType]?.schema : undefined
   if (requestBodySchema) {
-    formFields.push(...processSchemaProperties(spec, requestBodySchema, [], ''))
+    formFields.push(...processSchemaProperties(requestBodySchema, [], ''))
   }
 
   // Code samples
