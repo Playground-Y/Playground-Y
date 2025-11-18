@@ -226,6 +226,17 @@ export function CodeEditor({
 
   return (
     <div className="bg-code-editor text-white relative flex flex-col h-full">
+      {/* Hidden semantic HTML code blocks for scrapers - all languages visible */}
+      {/* This ensures scrapers can see all code examples even before Monaco Editor loads */}
+      <div className="sr-only">
+        {codeSamples.length > 0 && codeSamples.map((sample) => (
+          <div key={`scraper-${sample.language}`} data-language={sample.language} itemScope itemType="https://schema.org/Code">
+            <h3>Code Example: {sample.language.charAt(0).toUpperCase() + sample.language.slice(1)}</h3>
+            <pre><code className={`language-${sample.language}`} itemProp="code">{sample.code}</code></pre>
+          </div>
+        ))}
+      </div>
+
       {/* Tabs */}
       <div className="border-b border-code-editor flex items-center px-6 bg-code-editor-header">
         <button 
