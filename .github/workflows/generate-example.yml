@@ -17,15 +17,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: '3.11'
+          node-version: '20'
 
-      - run: pip install -r requirements.txt
+      - name: Build TypeScript generator
+        run: |
+          cd packages/generator
+          npm install
+          npm run build
 
-      - run: python generate.py examples/coingecko-spec.json examples/coingecko --no-interactive
+      - name: Generate example playground
+        run: node packages/generator/dist/cli.js examples/coingecko-spec.json examples/coingecko --no-interactive
 
-      - run: |
+      - name: Commit and push changes
+        run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add examples/coingecko/
