@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useParams, useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { Sidebar } from '@/components/api-playground/sidebar'
 import { ApiPageHeader } from '@/components/api-playground/api-page-header'
 import { ApiForm } from '@/components/api-playground/api-form'
@@ -764,7 +765,7 @@ export default function SlugPage() {
             <Menu className="w-5 h-5 text-primary" />
           </button>
           {sidebarConfig?.workspace && (
-            <div className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               {sidebarConfig.workspace.image ? (
                 <img
                   src={sidebarConfig.workspace.image}
@@ -777,7 +778,7 @@ export default function SlugPage() {
                 </div>
               )}
               <span className="text-sm font-medium text-primary">{sidebarConfig.workspace.name}</span>
-            </div>
+            </Link>
           )}
         </div>
 
