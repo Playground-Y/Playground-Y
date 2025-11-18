@@ -17,6 +17,26 @@ Generate beautiful, interactive API playgrounds from OpenAPI specifications.
 ## DEMO
 https://coingecko-y.vercel.app/
 
+## Installation
+
+**Clone the repository:**
+```bash
+git clone <repository-url>
+cd Playground-Y
+```
+
+**Prerequisites:**
+- Python 3.7+ (required for the generator script)
+- Node.js 18+ (required for generated Next.js apps)
+- pnpm (install with `npm install -g pnpm`)
+
+**Install Python dependencies:**
+```bash
+pip install -r requirements.txt
+```
+
+Note: PyYAML is included in requirements.txt and is required for YAML OpenAPI specs (optional for JSON-only usage).
+
 ## Usage
 
 **Create a playground:**
