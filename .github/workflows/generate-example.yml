@@ -23,12 +23,11 @@ jobs:
 
       - name: Build TypeScript generator
         run: |
-          cd packages/generator
           npm install
           npm run build
 
       - name: Generate example playground
-        run: node packages/generator/dist/cli.js examples/coingecko-spec.json examples/coingecko --no-interactive
+        run: node dist/cli.js examples/coingecko-spec.json examples/coingecko --no-interactive
 
       - name: Commit and push changes
         run: |
