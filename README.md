@@ -19,25 +19,16 @@ https://coingecko-y.vercel.app/
 ## Quick Start
 
 **Prerequisites:**
-- Node.js 18+ (for both the generator and generated playgrounds)
-- pnpm (install with `npm install -g pnpm`)
+- Node.js 18+
 
-**Generate a playground:**
+**Generate a playground instantly:**
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd Playground-Y
+npx playground-y <spec-file> <output-directory>
+```
 
-# Install generator dependencies  
-cd packages/generator
-npm install
-npm run build
-cd ../..
-
-# Generate your playground
-node packages/generator/dist/cli.js examples/coingecko-spec.json my-playground
-
-# Run the generated playground
+**Example:**
+```bash
+npx playground-y examples/coingecko-spec.json my-playground
 cd my-playground
 pnpm install
 pnpm dev
@@ -45,11 +36,25 @@ pnpm dev
 
 ## Usage
 
-### Direct Generation
+### Installation (Optional)
+
+You can install the CLI globally for repeated use:
 
 ```bash
-node packages/generator/dist/cli.js <spec-path> <output-path> [options]
+npm install -g playground-y
 ```
+
+### Generate Playground
+
+```bash
+playground-y <spec-path> <output-path> [options]
+```
+
+**Available Aliases:**
+- `playground-y`
+- `playgroundy`
+- `pgy`
+- `openapi-playground`
 
 **Options:**
 - `--force`: Force overwrite of existing output directory
@@ -58,48 +63,14 @@ node packages/generator/dist/cli.js <spec-path> <output-path> [options]
 - `--workspace-image URL|FILE`: Workspace logo/image
 - `--no-interactive`: Skip interactive prompts
 
-### Development Mode with Auto-Reload
-
-Auto-regenerate on OpenAPI spec changes:
-```bash
-node watch.js <spec-path> <output-path>
-```
-
-The watch script:
-- Monitors your OpenAPI spec file for changes
-- Automatically regenerates the playground
-- Runs a Next.js dev server with hot reload
-- Preserves file watchers for seamless development
-
-**Example:**
-```bash
-node watch.js examples/coingecko-spec.json examples/coingecko
-```
-
 ## Features
 
 ✨ **Beautiful UI** - Modern, responsive design with light/dark/coffee themes  
 ⚡ **Fast** - TypeScript generator is ~10x faster than alternatives  
 🎯 **Type-safe** - Full TypeScript support throughout  
-🔄 **Hot reload** - Auto-regeneration with file watcher preservation  
 🎨 **Customizable** - Themes, branding, and configuration via `x-ui-config`  
 📝 **OpenAPI 3.x** - Full support with intelligent defaults  
-🚀 **Production ready** - Generates Next.js 16 apps  
-
-## Project Structure
-
-```
-Playground-Y/
-├── packages/generator/     # TypeScript generator (NEW!)
-│   ├── src/
-│   │   ├── modules/       # Modular components
-│   │   ├── generator.ts   # Main orchestrator
-│   │   └── cli.ts         # CLI interface
-│   └── dist/              # Compiled output
-├── src/                   # Template files for generated apps
-├── examples/              # Example OpenAPI specs
-└── watch.js               # Development watcher script
-```
+🚀 **Production ready** - Generates Next.js 16 apps
 
 ## Migration from Python
 
@@ -111,7 +82,7 @@ If you have existing workflows, simply replace:
 python generate.py spec.json output
 
 # New (TypeScript) 
-node packages/generator/dist/cli.js spec.json output
+npx playground-y spec.json output
 ```
 
 All features are maintained with improved performance.
