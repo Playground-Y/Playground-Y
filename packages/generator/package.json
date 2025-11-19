@@ -1,12 +1,23 @@
 {
-    "name": "@playground-y/generator",
-    "version": "1.0.0",
+    "name": "playground-y",
+    "version": "0.1.0",
     "description": "Generate API playgrounds from OpenAPI specifications",
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "bin": {
-        "playground-y": "./dist/cli.js"
+        "playground-y": "./dist/cli.js",
+        "playgroundy": "./dist/cli.js",
+        "pgy": "./dist/cli.js",
+        "openapi-playground": "./dist/cli.js"
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "engines": {
+        "node": ">=18.0.0"
     },
     "scripts": {
         "build": "tsc",
@@ -21,7 +32,19 @@
         "generator",
         "swagger"
     ],
-    "author": "",
+    "author": {
+        "name": "Samuel EF. Tinnerholm",
+        "email": "samuel.tinnerholm@gmail.com"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Playground-Y/Playground-Y.git",
+        "directory": "packages/generator"
+    },
+    "bugs": {
+        "url": "https://github.com/Playground-Y/Playground-Y/issues"
+    },
+    "homepage": "https://github.com/Playground-Y/Playground-Y#readme",
     "license": "MIT",
     "dependencies": {
         "@apidevtools/swagger-parser": "^10.1.0",

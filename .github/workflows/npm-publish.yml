@@ -1,0 +1,53 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.1.1, 0.2.0, 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Update package version
+        working-directory: packages/generator
+        run: |
+          npm version ${{ inputs.version }} --no-git-tag-version
+          echo "Updated version to ${{ inputs.version }}"
+          
+      - name: Install dependencies
+        working-directory: packages/generator
+        run: npm install
+        
+      - name: Build package
+        working-directory: packages/generator
+        run: npm run build
+        
+      - name: Publish to npm
+        working-directory: packages/generator
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          
+      - name: Commit version change
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add packages/generator/package.json
+          git commit -m "chore: bump version to ${{ inputs.version }}"
+          git tag "v${{ inputs.version }}"
+          git push
+          git push --tags
