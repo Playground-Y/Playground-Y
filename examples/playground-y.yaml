@@ -66,6 +66,12 @@ paths:
                   example: 'true'
               required:
                 - spec
+            examples:
+              default:
+                summary: Generate playground with example spec and dark theme
+                value:
+                  spec: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/playgroundy'
+                  theme: 'dark'
       responses:
         '200':
           description: Generation successful.
