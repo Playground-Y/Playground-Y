@@ -150,12 +150,7 @@ export function renderPackageJson(): object {
     name: 'api-playground',
     version: '0.1.0',
     private: true,
-    packageManager: 'pnpm@10.19.0',
-    engines: {
-      node: '>=20.0.0',
-    },
     scripts: {
-      preinstall: 'corepack enable && corepack prepare pnpm@10.19.0 --activate',
       dev: 'next dev',
       build: 'next build',
       start: 'next start',
@@ -185,7 +180,7 @@ export function renderPackageJson(): object {
       '@radix-ui/react-separator': '1.1.1',
       '@radix-ui/react-slider': '1.2.2',
       '@radix-ui/react-slot': '1.1.1',
-      '@radix-ui/react-switch': 'latest',
+      '@radix-ui/react-switch': '1.1.1',
       '@radix-ui/react-tabs': '1.1.2',
       '@radix-ui/react-toast': '1.2.4',
       '@radix-ui/react-toggle': '1.1.1',
