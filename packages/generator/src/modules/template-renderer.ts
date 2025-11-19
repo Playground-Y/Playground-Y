@@ -155,6 +155,7 @@ export function renderPackageJson(): object {
       node: '>=20.0.0',
     },
     scripts: {
+      preinstall: 'corepack enable && corepack prepare pnpm@10.19.0 --activate',
       dev: 'next dev',
       build: 'next build',
       start: 'next start',
