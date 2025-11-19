@@ -150,6 +150,10 @@ export function renderPackageJson(): object {
     name: 'api-playground',
     version: '0.1.0',
     private: true,
+    packageManager: 'pnpm@10.19.0',
+    engines: {
+      node: '>=20.0.0',
+    },
     scripts: {
       dev: 'next dev',
       build: 'next build',

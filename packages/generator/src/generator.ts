@@ -146,6 +146,9 @@ export async function generatePlayground(
         await writeFile(join(tempOutputDir, '.env'), renderEnvFile(config.apiKey));
         console.log('  ✓ .env');
 
+        await writeFile(join(tempOutputDir, '.nvmrc'), '20\n');
+        console.log('  ✓ .nvmrc');
+
         // 10. Generate page components
         console.log('Generating page components...');
         const endpoints = Object.keys(spec['x-ui-config']?.endpoints || {});
