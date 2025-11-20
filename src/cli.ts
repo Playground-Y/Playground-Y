@@ -7,7 +7,7 @@ import { GeneratorConfigSchema } from './types/index.js';
 const program = new Command();
 
 program
-    .name('playground-y')
+    .name('madrasly')
     .description('Generate API playground from OpenAPI spec')
     .version('1.0.0')
     .argument('<spec>', 'OpenAPI spec file (JSON or YAML)')

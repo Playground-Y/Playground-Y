@@ -1,15 +1,13 @@
 {
-    "name": "playground-y",
+    "name": "madrasly",
     "version": "0.1.0",
     "description": "Generate API playgrounds from OpenAPI specifications",
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "bin": {
-        "playground-y": "./dist/cli.js",
-        "playgroundy": "./dist/cli.js",
-        "pgy": "./dist/cli.js",
-        "openapi-playground": "./dist/cli.js"
+        "madrasly": "./dist/cli.js",
+        "madras": "./dist/cli.js"
     },
     "files": [
         "dist",
@@ -39,12 +37,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/Playground-Y/Playground-Y.git"
+        "url": "https://github.com/madrasly/madrasly.git"
     },
     "bugs": {
-        "url": "https://github.com/Playground-Y/Playground-Y/issues"
+        "url": "https://github.com/madrasly/madrasly/issues"
     },
-    "homepage": "https://github.com/Playground-Y/Playground-Y#readme",
+    "homepage": "https://github.com/Playground-Y/madrasly#readme",
     "license": "MIT",
     "dependencies": {
         "@apidevtools/swagger-parser": "^10.1.0",

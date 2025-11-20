@@ -15,7 +15,7 @@ Before you begin, ensure you have the following installed:
 
 ```bash
 git clone <repository-url>
-cd Playground-Y
+cd madrasly
 ```
 
 ### 2. Understanding the Project Structure
@@ -261,7 +261,7 @@ To test the built generator locally:
 npm link
 
 # Use it anywhere
-playground-y examples/coingecko-spec.json test-output
+madrasly examples/coingecko-spec.json test-output
 ```
 
 ## Debugging

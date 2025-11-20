@@ -519,7 +519,7 @@ export function CodeEditor({
       {/* Bottom Right Built With Button */}
       <div className="absolute bottom-8 right-8">
         <a
-          href="https://github.com/Playground-Y/Playground-Y"
+          href="https://github.com/madrasly/madrasly"
           target="_blank"
           rel="noopener noreferrer"
           className="
@@ -529,7 +529,7 @@ export function CodeEditor({
             hover:bg-hover hover:shadow-xl active:bg-active active:scale-95
           "
         >
-          Built with playground-y
+          Built with madrasly
         </a>
       </div>
     </div>

@@ -23,12 +23,12 @@ https://coingecko-y.vercel.app/
 
 **Generate a playground instantly:**
 ```bash
-npx playground-y <spec-file> <output-directory>
+npx madrasly <spec-file> <output-directory>
 ```
 
 **Example:**
 ```bash
-npx playground-y examples/coingecko-spec.json my-playground
+npx madrasly examples/coingecko-spec.json my-playground
 cd my-playground
 pnpm install
 pnpm dev
@@ -41,20 +41,18 @@ pnpm dev
 You can install the CLI globally for repeated use:
 
 ```bash
-npm install -g playground-y
+npm install -g madrasly
 ```
 
 ### Generate Playground
 
 ```bash
-playground-y <spec-path> <output-path> [options]
+madrasly <spec-path> <output-path> [options]
 ```
 
 **Available Aliases:**
-- `playground-y`
-- `playgroundy`
-- `pgy`
-- `openapi-playground`
+- `madrasly`
+- `madras`
 
 **Options:**
 - `--force`: Force overwrite of existing output directory
@@ -82,7 +80,7 @@ If you have existing workflows, simply replace:
 python generate.py spec.json output
 
 # New (TypeScript) 
-npx playground-y spec.json output
+npx madrasly spec.json output
 ```
 
 All features are maintained with improved performance.
