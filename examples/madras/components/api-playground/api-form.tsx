@@ -164,6 +164,8 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
 
   // Track which fields have been explicitly set by the user (not just defaults)
   const userModifiedFields = useRef<Set<string>>(new Set())
+  // Track if we've auto-prefilled for the current endpoint
+  const hasAutoPrefilled = useRef<boolean>(false)
 
   // Mark a field as user-modified when it changes
   useEffect(() => {
@@ -260,7 +262,25 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
     lastCleanedDataRef.current = ''
     // Reset user modified fields tracking
     userModifiedFields.current.clear()
+    // Reset selected example when endpoint changes
+    setSelectedExample('')
+    // Reset auto-prefill flag when endpoint changes
+    hasAutoPrefilled.current = false
   }, [initialFormData, urlField?.defaultValue])
+
+  // Auto-prefill with first example when component mounts or endpoint changes
+  useEffect(() => {
+    // Only auto-prefill if:
+    // 1. Examples are available
+    // 2. We haven't already auto-prefilled for this endpoint
+    if (examples && examples.length > 0 && !hasAutoPrefilled.current) {
+      const firstExample = examples[0]
+      handleExampleSelect(firstExample.value)
+      hasAutoPrefilled.current = true
+    }
+    // Only run when formFields change (new endpoint) or examples change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examples, formFields])
 
   // Use ref to store the latest onFormChange callback to avoid dependency issues
   const onFormChangeRef = useRef(onFormChange)
