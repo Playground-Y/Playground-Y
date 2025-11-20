@@ -4,7 +4,7 @@ info:
   description: The official Madrasly API to generate interactive playgrounds on demand.
   version: 0.1.0
 servers:
-  - url: https://madrasly-gc-backend-716221417058.us-east4.run.app
+  - url: https://api.madrasly.com
     description: Production server on Google Cloud Run
 tags:
   - name: DEMO

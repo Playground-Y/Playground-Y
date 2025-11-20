@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://madrasly-gc-backend-716221417058.us-east4.run.app",
+      "url": "https://api.madrasly.com",
       "description": "Production server on Google Cloud Run"
     }
   ],
