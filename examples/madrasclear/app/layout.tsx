@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/toaster'
 import { ThemeProvider } from '@/components/theme-provider'
-import { SelfDestructBannerWrapper } from '@/components/self-destruct-banner-wrapper'
 import './globals.css'
 import { readFileSync } from 'fs'
 import { join } from 'path'
@@ -69,14 +68,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <ThemeProvider
           attribute="data-theme"
           defaultTheme="light"
           themes={['light', 'dark', 'coffee']}
           enableSystem={false}
         >
-          <SelfDestructBannerWrapper />
           {children}
           <Toaster />
         </ThemeProvider>

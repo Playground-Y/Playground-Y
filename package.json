@@ -42,7 +42,7 @@
     "bugs": {
         "url": "https://github.com/madrasly/madrasly/issues"
     },
-    "homepage": "https://github.com/Playground-Y/madrasly#readme",
+    "homepage": "https://github.com/madrasly/madrasly#readme",
     "license": "MIT",
     "dependencies": {
         "@apidevtools/swagger-parser": "^10.1.0",

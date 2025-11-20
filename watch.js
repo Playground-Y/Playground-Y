@@ -13,9 +13,15 @@
  *   --use-python-generator     Use legacy Python generator instead of TypeScript
  */
 
-const { spawn } = require('child_process');
-const { watch } = require('fs');
-const path = require('path');
+import { spawn } from 'child_process';
+import { watch } from 'fs';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const openapiFile = process.argv[2] || 'example-spec.yaml';
 const outputDir = process.argv[3] || 'example';
@@ -139,9 +145,6 @@ console.log(`   - Generator source: ${path.join(__dirname, 'src')}`);
 console.log(`   - Templates: ${path.join(__dirname, 'templates')}`);
 console.log(`   - Output: ${outputDir}\n`);
 
-// Initial generation
-regenerate();
-
 // Watch for changes
 watchPaths.forEach(watchPath => {
   try {
@@ -175,7 +178,6 @@ async function startDevServerIfNeeded() {
 
   const codeDir = path.join(__dirname, outputDir);
   const nodeModulesPath = path.join(codeDir, 'node_modules');
-  const fs = require('fs');
 
   // Wait a bit for file system to settle after regeneration
   await new Promise(resolve => setTimeout(resolve, 500));
@@ -206,6 +208,11 @@ async function startDevServerIfNeeded() {
     nextDevProcess = spawn('pnpm', ['dev'], {
       stdio: 'inherit',
       cwd: codeDir
+    });
+
+    nextDevProcess.on('error', (err) => {
+      console.error(`\n❌ Failed to start dev server: ${err.message}`);
+      process.exit(1);
     });
 
     nextDevProcess.on('close', (code) => {
