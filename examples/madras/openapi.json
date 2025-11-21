@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Madrasly",
-    "description": "The official Madrasly API to generate interactive playgrounds on demand.",
+    "description": "Generate interactive playgrounds on demand.",
     "version": "0.1.0"
   },
   "servers": [
@@ -71,7 +71,7 @@
                     "type": "string",
                     "format": "uri",
                     "description": "The URL to the OpenAPI specification (must be http:// or https://).",
-                    "example": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/coingecko-spec.json"
+                    "example": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/madras.yaml"
                   },
                   "theme": {
                     "type": "string",
@@ -108,7 +108,7 @@
                 "default": {
                   "summary": "Dark Theme Coingecko Playground",
                   "value": {
-                    "spec": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/coingecko-spec.json",
+                    "spec": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/coingecko-spec.json",
                     "workspaceImage": "https://miro.medium.com/v2/resize:fill:160:160/1*MNU7nMmomuk3xc2S2Jw08Q.png",
                     "theme": "dark",
                     "includeDownload": false,
@@ -292,11 +292,11 @@
                     {
                       "id": "37ee8856-5e24-4b2c-8083-6dc33530dc0a",
                       "name": "My CoinGecko Playground",
-                      "specUrl": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/coingecko-spec.json",
+                      "specUrl": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/coingecko-spec.json",
                       "theme": "dark",
                       "workspaceImage": "https://miro.medium.com/v2/resize:fill:160:160/1*MNU7nMmomuk3xc2S2Jw08Q.png",
                       "previewUrl": "https://madrasly-37ee8856-5e24-4b2c-8083-6dc33530dc0a.vercel.app",
-                      "downloadUrl": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/37ee8856-5e24-4b2c-8083-6dc33530dc0a.zip",
+                      "downloadUrl": "https://example.com",
                       "createdAt": "2025-11-20T17:00:00Z",
                       "updatedAt": "2025-11-20T17:00:00Z"
                     },
@@ -409,7 +409,7 @@
               },
               "example": {
                 "name": "My CoinGecko Playground",
-                "specUrl": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/coingecko-spec.json",
+                "specUrl": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/coingecko-spec.json",
                 "theme": "dark",
                 "workspaceImage": "https://miro.medium.com/v2/resize:fill:160:160/1*MNU7nMmomuk3xc2S2Jw08Q.png"
               }
@@ -489,11 +489,11 @@
                 "example": {
                   "id": "37ee8856-5e24-4b2c-8083-6dc33530dc0a",
                   "name": "My CoinGecko Playground",
-                  "specUrl": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/coingecko-spec.json",
+                  "specUrl": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/coingecko-spec.json",
                   "theme": "dark",
                   "workspaceImage": "https://miro.medium.com/v2/resize:fill:160:160/1*MNU7nMmomuk3xc2S2Jw08Q.png",
                   "previewUrl": "https://madrasly-37ee8856-5e24-4b2c-8083-6dc33530dc0a.vercel.app",
-                  "downloadUrl": "https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/37ee8856-5e24-4b2c-8083-6dc33530dc0a.zip",
+                  "downloadUrl": "https://example.com",
                   "createdAt": "2025-11-20T17:00:00Z",
                   "updatedAt": "2025-11-20T17:00:00Z",
                   "status": "processing",

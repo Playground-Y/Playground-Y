@@ -228,7 +228,7 @@ paths:
               example:
                 id: '37ee8856-5e24-4b2c-8083-6dc33530dc0a'
                 name: 'My CoinGecko Playground'
-                specUrl: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/coingecko-spec.json
+                specUrl: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/coingecko-spec.json'
                 theme: 'dark'
                 workspaceImage: 'https://miro.medium.com/v2/resize:fill:160:160/1*MNU7nMmomuk3xc2S2Jw08Q.png'
                 previewUrl: 'https://madrasly-37ee8856-5e24-4b2c-8083-6dc33530dc0a.vercel.app'
