@@ -522,10 +522,10 @@ export function CodeEditor({
           target="_blank"
           rel="noopener noreferrer"
           className="
-            px-4 py-2 bg-white text-primary rounded-full font-medium text-sm 
+            px-4 py-2 bg-white text-black rounded-full font-medium text-sm 
             flex items-center gap-2 shadow-lg
             transition-all duration-200 ease-in-out
-            hover:bg-hover hover:shadow-xl active:bg-active active:scale-95
+            hover:bg-gray-100 hover:shadow-xl active:bg-gray-200 active:scale-95
           "
         >
           Built with madrasly
