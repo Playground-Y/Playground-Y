@@ -71,7 +71,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <ThemeProvider
           attribute="data-theme"
-          defaultTheme="light"
+          defaultTheme="dark"
           themes={['light', 'dark', 'coffee']}
           enableSystem={false}
         >
