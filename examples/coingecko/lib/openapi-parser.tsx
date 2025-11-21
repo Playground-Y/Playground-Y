@@ -424,7 +424,71 @@ export function parseOpenAPIToConfig(spec: OpenAPISpec, endpointKey: string): Ap
     : null
   const requestBodySchema = contentType && requestBodyContent ? (requestBodyContent as Record<string, any>)[contentType]?.schema : undefined
   if (requestBodySchema) {
-    formFields.push(...processSchemaProperties(requestBodySchema, [], ''))
+    const normalized = normalizeSchema(requestBodySchema)
+
+    // Handle top-level array schema (e.g., { type: "array", items: { type: "string" } })
+    if (normalized?.type === 'array') {
+      const itemsSchema = normalizeSchema(normalized.items)
+
+      // If items are objects with properties, create an array-object field
+      if (itemsSchema && (itemsSchema.type === 'object' || itemsSchema.properties)) {
+        const nested = processSchemaProperties(itemsSchema, itemsSchema.required || [], '')
+        if (nested.length > 0) {
+          formFields.push({
+            name: 'body',
+            label: 'Request Body',
+            description: normalized.description || 'Array of items',
+            type: 'array-object',
+            required: true,
+            defaultValue: [],
+            itemSchema: itemsSchema,
+            nestedFields: nested,
+          })
+        }
+      } else if (itemsSchema?.enum) {
+        // Array of enums - use multi-select
+        formFields.push({
+          name: 'body',
+          label: 'Request Body',
+          description: normalized.description || 'Select multiple values',
+          type: 'multi-select',
+          required: true,
+          defaultValue: [],
+          options: itemsSchema.enum.map((val: string) => ({ value: val, label: val })),
+        })
+      } else {
+        // Array of primitives (strings, numbers, etc.)
+        formFields.push({
+          name: 'body',
+          label: 'Request Body',
+          description: normalized.description || 'Enter comma-separated values',
+          type: 'array',
+          required: true,
+          defaultValue: [],
+          placeholder: normalized.description || `Enter ${itemsSchema?.type || 'values'} (comma-separated)`,
+        })
+      }
+    }
+    // Handle top-level primitive schema (e.g., { type: "string" })
+    else if (normalized?.type && normalized.type !== 'object' && !normalized.properties) {
+      formFields.push({
+        name: 'body',
+        label: 'Request Body',
+        description: normalized.description,
+        type: getFieldType(normalized),
+        required: true,
+        format: normalized.format,
+        minimum: normalized.minimum,
+        maximum: normalized.maximum,
+        defaultValue: normalized.default,
+        options: normalized.enum?.map((val: string) => ({ value: val, label: val })),
+        placeholder: normalized.description || normalized.example?.toString(),
+      })
+    }
+    // Handle object schema with properties
+    else {
+      formFields.push(...processSchemaProperties(normalized, [], ''))
+    }
   }
 
   // Code samples
