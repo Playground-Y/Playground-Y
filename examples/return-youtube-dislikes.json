@@ -9,6 +9,9 @@
       "url": "https://returnyoutubedislikeapi.com"
     }
   ],
+  "externalDocs": {
+    "url": "https://returnyoutubedislike.com/docs"
+  },
   "tags": [
     {
       "name": "Auth",
