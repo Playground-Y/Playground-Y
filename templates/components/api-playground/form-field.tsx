@@ -461,12 +461,12 @@ export function FormField({ config, value, onChange }: FormFieldProps) {
         return (
           <div className="flex items-start justify-between py-4 min-w-0">
             <div className="flex-1 min-w-0">
-              <h3 className="label-default">
+              <h3 className="label-default text-foreground">
                 {config.label}
                 {config.required && <span className="text-error">*</span>}
               </h3>
               {config.description && (
-                <div className="description-default mt-1">
+                <div className="description-default mt-1 text-muted-foreground">
                   <MarkdownRenderer content={config.description} />
                 </div>
               )}
