@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Madrasly
-  description: The official Madrasly API to generate interactive playgrounds on demand.
+  description: Generate interactive playgrounds on demand.
   version: 0.1.0
 servers:
   - url: https://api.madrasly.com
