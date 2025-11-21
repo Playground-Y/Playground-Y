@@ -50,7 +50,7 @@ paths:
                   type: string
                   format: uri
                   description: The URL to the OpenAPI specification (must be http:// or https://).
-                  example: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/coingecko-spec.json'
+                  example: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/madras.yaml'
                 theme:
                   type: string
                   enum: [light, dark, coffee]
@@ -75,7 +75,7 @@ paths:
               default:
                 summary: Dark Theme Coingecko Playground
                 value:
-                  spec: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/coingecko-spec.json'
+                  spec: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/coingecko-spec.json'
                   workspaceImage: 'https://miro.medium.com/v2/resize:fill:160:160/1*MNU7nMmomuk3xc2S2Jw08Q.png'
                   theme: 'dark'
                   includeDownload: false
@@ -153,11 +153,11 @@ paths:
                 playgrounds:
                   - id: '37ee8856-5e24-4b2c-8083-6dc33530dc0a'
                     name: 'My CoinGecko Playground'
-                    specUrl: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/coingecko-spec.json'
+                    specUrl: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/coingecko-spec.json'
                     theme: 'dark'
                     workspaceImage: 'https://miro.medium.com/v2/resize:fill:160:160/1*MNU7nMmomuk3xc2S2Jw08Q.png'
                     previewUrl: 'https://madrasly-37ee8856-5e24-4b2c-8083-6dc33530dc0a.vercel.app'
-                    downloadUrl: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/37ee8856-5e24-4b2c-8083-6dc33530dc0a.zip'
+                    downloadUrl: 'https://example.com'
                     createdAt: '2025-11-20T17:00:00Z'
                     updatedAt: '2025-11-20T17:00:00Z'
                   - id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
@@ -215,7 +215,7 @@ paths:
                   description: URL to a logo or workspace image
             example:
               name: 'My CoinGecko Playground'
-              specUrl: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/coingecko-spec.json'
+              specUrl: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/coingecko-spec.json'
               theme: 'dark'
               workspaceImage: 'https://miro.medium.com/v2/resize:fill:160:160/1*MNU7nMmomuk3xc2S2Jw08Q.png'
       responses:
@@ -228,11 +228,11 @@ paths:
               example:
                 id: '37ee8856-5e24-4b2c-8083-6dc33530dc0a'
                 name: 'My CoinGecko Playground'
-                specUrl: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/coingecko-spec.json'
+                specUrl: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/examples/coingecko-spec.json
                 theme: 'dark'
                 workspaceImage: 'https://miro.medium.com/v2/resize:fill:160:160/1*MNU7nMmomuk3xc2S2Jw08Q.png'
                 previewUrl: 'https://madrasly-37ee8856-5e24-4b2c-8083-6dc33530dc0a.vercel.app'
-                downloadUrl: 'https://cxzlehzbkgojooqvubuu.supabase.co/storage/v1/object/public/playgrounds/playgrounds/37ee8856-5e24-4b2c-8083-6dc33530dc0a.zip'
+                downloadUrl: 'https://example.com'
                 createdAt: '2025-11-20T17:00:00Z'
                 updatedAt: '2025-11-20T17:00:00Z'
                 status: 'processing'
