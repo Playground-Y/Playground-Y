@@ -173,18 +173,7 @@ export default function SlugPage() {
     if (sidebar.navItems) {
       sidebar.navItems.forEach(section => {
         section.items.forEach(item => {
-          // Active if it matches the current endpoint OR if it matches any endpoint in the current group (same path)
-          // But since we grouped by path in the sidebar, the item.endpointKey is just one of them (the default).
-          // We should check if the item's endpointKey is in our available methods map?
-          // Actually, sidebar items are now unique per path.
-          // The sidebar parser picks the "best" endpoint key for the item.
-          // We should check if that "best" key corresponds to our current path.
-
-          // Simple check: does the item's endpointKey match any of our available methods?
-          // Or better: does the item's label match our current path?
-          // But label might be title.
-
-          // Let's check if the item's endpointKey is in our methodMap values
+          // Active if the item's endpointKey is in our current path's method map
           const itemKey = item.endpointKey
           if (itemKey && Object.values(methodMap).includes(itemKey)) {
             item.active = true
@@ -240,15 +229,13 @@ export default function SlugPage() {
     if (!openApiSpec) return undefined
     const securitySchemes = openApiSpec.components?.securitySchemes as Record<string, any> | undefined
 
-    // First try to get scheme from config
-    if (authConfig.schemeName && securitySchemes) {
-      const scheme = securitySchemes[authConfig.schemeName]
-      if (scheme) return scheme
-    }
-
-    // Fall back to checking operation security or global security
-    if (operation?.security && operation.security.length > 0) {
-      // Get first security scheme from operation
+    // 1. Check if operation explicitly defines security (Highest priority)
+    if (operation?.security !== undefined) {
+      // If security is explicitly set to empty array, no auth required
+      if (operation.security.length === 0) {
+        return undefined
+      }
+      // Otherwise, use the first security scheme from operation
       const firstSecurity = operation.security[0]
       const schemeName = Object.keys(firstSecurity)[0]
       if (schemeName && securitySchemes) {
@@ -256,7 +243,13 @@ export default function SlugPage() {
       }
     }
 
-    // Check global security
+    // 2. Try to get scheme from global UI config
+    if (authConfig.schemeName && securitySchemes) {
+      const scheme = securitySchemes[authConfig.schemeName]
+      if (scheme) return scheme
+    }
+
+    // 3. Check global security in spec
     if (openApiSpec.security && openApiSpec.security.length > 0) {
       const firstSecurity = openApiSpec.security[0]
       const schemeName = Object.keys(firstSecurity)[0]
@@ -265,12 +258,7 @@ export default function SlugPage() {
       }
     }
 
-    // If security schemes exist, use the first one
-    if (securitySchemes && Object.keys(securitySchemes).length > 0) {
-      const firstSchemeName = Object.keys(securitySchemes)[0]
-      return securitySchemes[firstSchemeName]
-    }
-
+    // 4. No security defined -> return undefined
     return undefined
   }, [authConfig.schemeName, operation, openApiSpec])
 
@@ -887,7 +875,77 @@ export default function SlugPage() {
                 <ApiPageHeader
                   title={endpointConfig.title}
                   description={endpointConfig.description}
-                  actions={[
+                  methodSelector={{
+                    methods: availableMethods,
+                    currentMethod: endpointConfig.method,
+                    onMethodChange: (method) => {
+                      const newKey = methodToKeyMap[method]
+                      if (newKey) {
+                        // Update URL with method param
+                        const params = new URLSearchParams(searchParams.toString())
+                        params.set('method', method)
+                        router.push(`${pathname}?${params.toString()}`)
+                      }
+                    }
+                  }}
+                  actions={docsUrl ? [
+                    {
+                      label: 'Docs',
+                      icon: <FileText size={16} />,
+                      onClick: handleDocs,
+                    },
+                    {
+                      label: 'Copy for AI',
+                      icon: (
+                        <div className="flex items-center -space-x-1 mr-2 h-6 shrink-0">
+                          <img
+                            src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg"
+                            alt="ChatGPT"
+                            className="w-6 h-6 object-contain relative z-10 shrink-0 flex-shrink-0"
+                            onLoad={() => console.log('[DEBUG] ChatGPT logo loaded')}
+                            onError={(e) => {
+                              console.error('[DEBUG] ChatGPT logo failed to load', e)
+                              const target = e.target as HTMLImageElement
+                              target.style.display = 'none'
+                            }}
+                          />
+                          <img
+                            src="https://www.anthropic.com/images/anthropic-logo.svg"
+                            alt="Anthropic"
+                            className="w-6 h-6 object-contain relative z-0 shrink-0 flex-shrink-0"
+                            onLoad={() => console.log('[DEBUG] Anthropic logo loaded')}
+                            onError={(e) => {
+                              console.error('[DEBUG] Anthropic logo failed, trying favicon', e)
+                              const target = e.target as HTMLImageElement
+                              target.src = 'https://www.anthropic.com/favicon.ico'
+                              target.onload = () => console.log('[DEBUG] Anthropic favicon loaded')
+                              target.onerror = () => {
+                                console.error('[DEBUG] Anthropic favicon also failed')
+                                target.style.display = 'none'
+                              }
+                            }}
+                          />
+                          <img
+                            src="https://www.gstatic.com/lamda/images/gemini_sparkle_v2_delta_v2.svg"
+                            alt="Gemini"
+                            className="w-6 h-6 object-contain relative shrink-0 flex-shrink-0"
+                            onLoad={() => console.log('[DEBUG] Gemini logo loaded')}
+                            onError={(e) => {
+                              console.error('[DEBUG] Gemini logo failed, trying favicon', e)
+                              const target = e.target as HTMLImageElement
+                              target.src = 'https://www.google.com/favicon.ico'
+                              target.onload = () => console.log('[DEBUG] Gemini favicon loaded')
+                              target.onerror = () => {
+                                console.error('[DEBUG] Gemini favicon also failed')
+                                target.style.display = 'none'
+                              }
+                            }}
+                          />
+                        </div>
+                      ),
+                      onClick: handleCopyForAI,
+                    },
+                  ] : [
                     {
                       label: 'Copy for AI',
                       icon: (

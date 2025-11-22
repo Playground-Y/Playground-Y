@@ -116,8 +116,19 @@ export function generateEndpointConfigs(
 
             const endpointKey = operationId.toLowerCase().replace(/_/g, '-');
 
+            // Helper to format path into a readable title
+            const formatPathToTitle = (path: string) => {
+                return path
+                    .replace(/^\//, '') // Remove leading slash
+                    .replace(/[-_]/g, ' ') // Replace dashes and underscores with spaces
+                    .replace(/\//g, ' ') // Replace remaining slashes with spaces
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize words
+                    .join(' ');
+            };
+
             const endpointConfig: EndpointConfig = {
-                title: operation.summary || operationId,
+                title: operation.summary || formatPathToTitle(path),
                 description: operation.description || '',
                 method: method.toUpperCase(),
                 path: path,

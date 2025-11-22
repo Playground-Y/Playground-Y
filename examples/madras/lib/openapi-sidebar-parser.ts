@@ -93,38 +93,29 @@ export function parseSidebarConfig(
       // Get tag order from OpenAPI spec tags array
       const tagOrder = openApiSpec.tags.map(tag => tag.name)
 
-      // Helper to group endpoints by path and pick the best one (GET > POST > etc)
+      // Helper to process endpoints without hiding any
       const processEndpoints = (endpoints: Array<{ endpointKey: string; endpoint: any }>) => {
-        const pathGroups = new Map<string, Array<{ endpointKey: string; endpoint: any }>>()
-
-        endpoints.forEach(item => {
-          const path = item.endpoint.path
-          if (!pathGroups.has(path)) pathGroups.set(path, [])
-          pathGroups.get(path)!.push(item)
-        })
-
         const methodPriority = ['get', 'post', 'put', 'patch', 'delete']
 
-        return Array.from(pathGroups.entries()).map(([path, items]) => {
-          // Sort by method priority
-          items.sort((a, b) => {
-            const indexA = methodPriority.indexOf(a.endpoint.method.toLowerCase())
-            const indexB = methodPriority.indexOf(b.endpoint.method.toLowerCase())
-            const pA = indexA === -1 ? 999 : indexA
-            const pB = indexB === -1 ? 999 : indexB
-            return pA - pB
-          })
-
-          const bestItem = items[0]
-
-          return {
-            label: path,
-            icon: undefined,
-            active: false,
-            endpointKey: bestItem.endpointKey,
-            onClick: onEndpointClick ? () => onEndpointClick(bestItem.endpointKey) : undefined,
+        // Sort endpoints: first by path, then by method priority
+        endpoints.sort((a, b) => {
+          if (a.endpoint.path !== b.endpoint.path) {
+            return a.endpoint.path.localeCompare(b.endpoint.path)
           }
+          const indexA = methodPriority.indexOf(a.endpoint.method.toLowerCase())
+          const indexB = methodPriority.indexOf(b.endpoint.method.toLowerCase())
+          const pA = indexA === -1 ? 999 : indexA
+          const pB = indexB === -1 ? 999 : indexB
+          return pA - pB
         })
+
+        return endpoints.map(item => ({
+          label: item.endpoint.title || item.endpoint.path,
+          icon: undefined,
+          active: false,
+          endpointKey: item.endpointKey,
+          onClick: onEndpointClick ? () => onEndpointClick(item.endpointKey) : undefined,
+        }))
       }
 
       // Create sections for each tag
@@ -149,40 +140,32 @@ export function parseSidebarConfig(
       })
     } else {
       // Fallback: if no OpenAPI spec, just group everything under "API Playground"
-      // But still group by path
       const endpoints = Object.entries(config.endpoints).map(([endpointKey, endpoint]) => ({
         endpointKey,
         endpoint
       }))
 
-      const pathGroups = new Map<string, Array<{ endpointKey: string; endpoint: any }>>()
-      endpoints.forEach(item => {
-        const path = item.endpoint.path
-        if (!pathGroups.has(path)) pathGroups.set(path, [])
-        pathGroups.get(path)!.push(item)
-      })
-
       const methodPriority = ['get', 'post', 'put', 'patch', 'delete']
 
-      const endpointItems = Array.from(pathGroups.entries()).map(([path, items]) => {
-        items.sort((a, b) => {
-          const indexA = methodPriority.indexOf(a.endpoint.method.toLowerCase())
-          const indexB = methodPriority.indexOf(b.endpoint.method.toLowerCase())
-          const pA = indexA === -1 ? 999 : indexA
-          const pB = indexB === -1 ? 999 : indexB
-          return pA - pB
-        })
-
-        const bestItem = items[0]
-
-        return {
-          label: path,
-          icon: undefined,
-          active: false,
-          endpointKey: bestItem.endpointKey,
-          onClick: onEndpointClick ? () => onEndpointClick(bestItem.endpointKey) : undefined,
+      // Sort endpoints: first by path, then by method priority
+      endpoints.sort((a, b) => {
+        if (a.endpoint.path !== b.endpoint.path) {
+          return a.endpoint.path.localeCompare(b.endpoint.path)
         }
+        const indexA = methodPriority.indexOf(a.endpoint.method.toLowerCase())
+        const indexB = methodPriority.indexOf(b.endpoint.method.toLowerCase())
+        const pA = indexA === -1 ? 999 : indexA
+        const pB = indexB === -1 ? 999 : indexB
+        return pA - pB
       })
+
+      const endpointItems = endpoints.map(item => ({
+        label: item.endpoint.title || item.endpoint.path,
+        icon: undefined,
+        active: false,
+        endpointKey: item.endpointKey,
+        onClick: onEndpointClick ? () => onEndpointClick(item.endpointKey) : undefined,
+      }))
 
       navItems.unshift({
         title: 'API Playground',
