@@ -138,3 +138,5 @@ dist
 /examples/test
 examples/.DS_Store
 .DS_Store
+/examples/temp
+examples/temp.yaml
