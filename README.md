@@ -62,31 +62,6 @@ madrasly <spec-path> <output-path> [options]
 - `--no-interactive`: Skip interactive prompts
 - `--popular-endpoints ENDPOINTS`: Comma-separated list of endpoints to display prominently
 
-
-## Features
-
-✨ **Beautiful UI** - Modern, responsive design with light/dark/coffee themes  
-⚡ **Fast** - TypeScript generator is ~10x faster than alternatives  
-🎯 **Type-safe** - Full TypeScript support throughout  
-🎨 **Customizable** - Themes, branding, and configuration via `x-ui-config`  
-📝 **OpenAPI 3.x** - Full support with intelligent defaults  
-🚀 **Production ready** - Generates Next.js 16 apps
-
-## Migration from Python
-
-**The generator is now TypeScript-based!** The Python generator has been retired in favor of a faster, more maintainable TypeScript implementation.
-
-If you have existing workflows, simply replace:
-```bash
-# Old (Python)
-python generate.py spec.json output
-
-# New (TypeScript) 
-npx madrasly spec.json output --popular-endpoints "get-votes,post-votes,post-interact-vote,get-puzzle-registration"
-```
-
-All features are maintained with improved performance.
-
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
