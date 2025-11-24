@@ -1,3 +1,6 @@
+![npm downloads](https://img.shields.io/npm/dm/madrasly) ![npm version](https://img.shields.io/npm/v/madrasly) ![GitHub stars](https://img.shields.io/github/stars/madrasly/madrasly?style=social) ![GitHub forks](https://img.shields.io/github/forks/madrasly/madrasly) ![License](https://img.shields.io/github/license/madrasly/madrasly)
+
+
 # OpenAPI Playground Generator
 
 Generate beautiful, interactive API playgrounds from OpenAPI specifications.
