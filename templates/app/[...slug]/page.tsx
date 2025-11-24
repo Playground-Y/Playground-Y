@@ -18,6 +18,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 // Note: openApiSpec should be dereferenced (all $refs resolved) at generation time
 // using @apidevtools/swagger-parser. The generator script should handle this.
 import { useOpenAPISpec } from '@/lib/use-openapi-spec'
+import { useToast } from '@/hooks/use-toast'
 import LandingPage from '../landing-page'
 
 export default function SlugPage() {
@@ -28,6 +29,7 @@ export default function SlugPage() {
   const methodParam = searchParams.get('method')
   const slug = params?.slug as string[] | undefined
   const { spec: openApiSpec, loading: specLoading } = useOpenAPISpec()
+  const { toast } = useToast()
 
   // If we're on the root path, show landing page instead
   if (pathname === '/') {
@@ -483,7 +485,7 @@ export default function SlugPage() {
     }
   }
 
-  const handleCopyForAI = () => {
+  const handleCopyForAI = async () => {
     if (!endpointConfig) return
 
     const baseUrl = openApiSpec.servers?.[0]?.url || ''
@@ -511,6 +513,8 @@ export default function SlugPage() {
 
     // Build example query string (use examples/defaults, not form values)
     const exampleQueryParams: Array<[string, any]> = []
+    const exampleHeaderParams: Array<[string, any]> = []
+
     if (operation?.parameters) {
       for (const param of operation.parameters) {
         if (param.in === 'query') {
@@ -519,6 +523,13 @@ export default function SlugPage() {
             param.schema?.default
           if (value !== undefined && value !== null && value !== '') {
             exampleQueryParams.push([param.name, value])
+          }
+        } else if (param.in === 'header') {
+          const value = param.schema?.example ||
+            param.example ||
+            param.schema?.default
+          if (value !== undefined && value !== null && value !== '') {
+            exampleHeaderParams.push([param.name, value])
           }
         }
       }
@@ -537,269 +548,192 @@ export default function SlugPage() {
       ? `${baseUrl}${fullPath}?${queryString}`
       : `${baseUrl}${fullPath}`
 
-    // Generate markdown
-    let markdown = `# ${endpointConfig.title}\n\n`
-
-    if (endpointConfig.description) {
-      markdown += `${endpointConfig.description}\n\n`
-    }
-
-    markdown += `## Endpoint\n\n`
-    markdown += `**Method:** \`${method}\`\n\n`
-    markdown += `**Path:** \`${path}\`\n\n`
-    markdown += `**Full URL:** \`${fullUrl}\`\n\n`
-
-    // Authentication
-    if (operation?.security || openApiSpec.security) {
-      const security = operation?.security || openApiSpec.security
-      const securitySchemes = openApiSpec.components?.securitySchemes as Record<string, any> | undefined
-      markdown += `## Authentication\n\n`
-      if (security && security.length > 0) {
-        for (const sec of security) {
-          for (const [schemeName] of Object.entries(sec)) {
-            const scheme = securitySchemes?.[schemeName]
-            if (scheme) {
-              if (scheme.type === 'http' && scheme.scheme === 'bearer') {
-                markdown += `**Required:** Bearer token authentication\n\n`
-                markdown += `Include header: \`Authorization: Bearer YOUR_API_KEY\`\n\n`
-              } else if (scheme.type === 'apiKey') {
-                if (scheme.in === 'header') {
-                  markdown += `**Required:** API key in header\n\n`
-                  markdown += `Include header: \`${scheme.name}: YOUR_API_KEY\`\n\n`
-                } else if (scheme.in === 'query') {
-                  markdown += `**Required:** API key in query parameter\n\n`
-                  markdown += `Add to URL: \`?${scheme.name}=YOUR_API_KEY\`\n\n`
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Path Parameters
-    const pathParamsList = operation?.parameters?.filter((p: any) => p.in === 'path') || []
-    if (pathParamsList.length > 0) {
-      markdown += `## Path Parameters\n\n`
-      for (const param of pathParamsList) {
-        markdown += `### \`${param.name}\`\n\n`
-        if (param.description) {
-          markdown += `${param.description}\n\n`
-        }
-        markdown += `**Type:** \`${param.schema?.type || 'string'}\`\n\n`
-        markdown += `**Required:** Yes\n\n`
-        if (param.schema?.example !== undefined) {
-          markdown += `**Example:** \`${JSON.stringify(param.schema.example)}\`\n\n`
-        } else if (param.example !== undefined) {
-          markdown += `**Example:** \`${JSON.stringify(param.example)}\`\n\n`
-        }
-      }
-    }
-
-    // Query Parameters
-    const queryParamsList = operation?.parameters?.filter((p: any) => p.in === 'query') || []
-    if (queryParamsList.length > 0) {
-      markdown += `## Query Parameters\n\n`
-      for (const param of queryParamsList) {
-        markdown += `### \`${param.name}\`\n\n`
-        if (param.description) {
-          markdown += `${param.description}\n\n`
-        }
-
-        let paramSchema = param.schema
-        if (paramSchema?.$ref) {
-          const refPath = paramSchema.$ref.replace('#/components/schemas/', '')
-          const schemas = openApiSpec.components?.schemas as Record<string, any> | undefined
-          paramSchema = schemas?.[refPath] || paramSchema
-        }
-
-        let typeDisplay = paramSchema?.type || 'string'
-        if (paramSchema?.type === 'object' && paramSchema.properties) {
-          const propKeys = Object.keys(paramSchema.properties)
-          if (propKeys.length > 0) {
-            typeDisplay = `object (${propKeys.join(', ')})`
-          }
-        }
-
-        markdown += `**Type:** \`${typeDisplay}\`\n\n`
-        markdown += `**Required:** ${param.required ? 'Yes' : 'No'}\n\n`
-        if (paramSchema?.enum) {
-          markdown += `**Options:** ${paramSchema.enum.map((v: any) => `\`${v}\``).join(', ')}\n\n`
-        }
-        if (paramSchema?.default !== undefined) {
-          markdown += `**Default:** \`${JSON.stringify(paramSchema.default)}\`\n\n`
-        }
-        if (paramSchema?.example !== undefined) {
-          markdown += `**Example:** \`${JSON.stringify(paramSchema.example)}\`\n\n`
-        } else if (param.example !== undefined) {
-          markdown += `**Example:** \`${JSON.stringify(param.example)}\`\n\n`
-        }
-      }
-    }
-
-    // Request Body
+    // Get example request body
+    let exampleRequestBody: any = null
     if (operation?.requestBody) {
-      markdown += `## Request Body\n\n`
       const requestBodyContent = operation.requestBody.content
       const contentType = requestBodyContent
         ? (requestBodyContent['application/json'] ? 'application/json' : Object.keys(requestBodyContent)[0])
         : 'application/json'
       const jsonContent = requestBodyContent?.[contentType]
-      const bodySchema = jsonContent?.schema
 
-      if (bodySchema) {
-        let resolvedSchema = bodySchema
+      if (jsonContent?.example) {
+        exampleRequestBody = jsonContent.example
+      } else if (jsonContent?.schema) {
+        let bodySchema = jsonContent.schema
         if (bodySchema.$ref) {
           const refPath = bodySchema.$ref.replace('#/components/schemas/', '')
           const schemas = openApiSpec.components?.schemas as Record<string, any> | undefined
-          resolvedSchema = schemas?.[refPath] || bodySchema
+          bodySchema = schemas?.[refPath] || bodySchema
         }
-
-        if (resolvedSchema.description) {
-          markdown += `${resolvedSchema.description}\n\n`
-        } else if (operation.requestBody.description) {
-          markdown += `${operation.requestBody.description}\n\n`
+        if (bodySchema.example) {
+          exampleRequestBody = bodySchema.example
         }
-
-        markdown += `**Content-Type:** \`${contentType}\`\n\n`
-
-        if (resolvedSchema.properties) {
-          const required = resolvedSchema.required || []
-          markdown += `### Fields\n\n`
-
-          for (const [name, prop] of Object.entries(resolvedSchema.properties)) {
-            let propSchema = prop as any
-            if (propSchema.$ref) {
-              const refPath = propSchema.$ref.replace('#/components/schemas/', '')
-              const schemas = openApiSpec.components?.schemas as Record<string, any> | undefined
-              const refSchema = schemas?.[refPath]
-              if (refSchema) {
-                propSchema = { ...refSchema, description: propSchema.description || refSchema.description }
-              }
-            }
-
-            if (propSchema.anyOf && Array.isArray(propSchema.anyOf)) {
-              const nonNullType = propSchema.anyOf.find((s: any) => s.type !== 'null' && s.type !== undefined)
-              if (nonNullType) {
-                propSchema = { ...nonNullType, description: propSchema.description || nonNullType.description }
-              }
-            }
-
-            markdown += `#### \`${name}\`\n\n`
-            if (propSchema.description) {
-              markdown += `${propSchema.description}\n\n`
-            }
-            markdown += `**Type:** \`${propSchema.type || 'object'}\`\n\n`
-            markdown += `**Required:** ${required.includes(name) ? 'Yes' : 'No'}\n\n`
-            if (propSchema.enum) {
-              markdown += `**Options:** ${propSchema.enum.map((v: any) => `\`${v}\``).join(', ')}\n\n`
-            }
-            if (propSchema.example !== undefined) {
-              markdown += `**Example:** \`${JSON.stringify(propSchema.example)}\`\n\n`
-            }
-            if (propSchema.default !== undefined) {
-              markdown += `**Default:** \`${JSON.stringify(propSchema.default)}\`\n\n`
-            }
-          }
-        }
-
-        if (jsonContent.example) {
-          markdown += `### Example Request Body\n\n`
-          markdown += `\`\`\`json\n${JSON.stringify(jsonContent.example, null, 2)}\n\`\`\`\n\n`
-        } else if (resolvedSchema.example) {
-          markdown += `### Example Request Body\n\n`
-          markdown += `\`\`\`json\n${JSON.stringify(resolvedSchema.example, null, 2)}\n\`\`\`\n\n`
-        }
-      } else {
-        markdown += `**Content-Type:** \`${contentType}\`\n\n`
       }
     }
 
-    // Response
+    // Get example response
+    let exampleResponse: any = null
     if (operation?.responses) {
-      markdown += `## Response\n\n`
       const successResponse = operation.responses['200'] || operation.responses['201'] || operation.responses['204']
-      if (successResponse) {
-        const responseContentTypes = successResponse.content ? Object.keys(successResponse.content) : []
+      if (successResponse?.content) {
+        const responseContentTypes = Object.keys(successResponse.content)
         const responseContentType = responseContentTypes.includes('application/json')
           ? 'application/json'
-          : (responseContentTypes[0] || 'application/json')
+          : responseContentTypes[0]
         const responseContent = successResponse.content?.[responseContentType]
-        if (responseContent?.schema) {
+
+        if (responseContent?.example) {
+          exampleResponse = responseContent.example
+        } else if (responseContent?.schema) {
           let responseSchema = responseContent.schema
           if (responseSchema.$ref) {
             const refPath = responseSchema.$ref.replace('#/components/schemas/', '')
             const schemas = openApiSpec.components?.schemas as Record<string, any> | undefined
             responseSchema = schemas?.[refPath] || responseSchema
           }
-
-          if (responseSchema.description) {
-            markdown += `${responseSchema.description}\n\n`
-          } else if (successResponse.description) {
-            markdown += `${successResponse.description}\n\n`
-          }
-
-          if (responseContent.example) {
-            markdown += `**Example Response:**\n\n`
-            markdown += `\`\`\`json\n${JSON.stringify(responseContent.example, null, 2)}\n\`\`\`\n\n`
-          } else if (responseSchema.example) {
-            markdown += `**Example Response:**\n\n`
-            markdown += `\`\`\`json\n${JSON.stringify(responseSchema.example, null, 2)}\n\`\`\`\n\n`
+          if (responseSchema.example) {
+            exampleResponse = responseSchema.example
           }
         }
-        markdown += `**Status Code:** \`${Object.keys(operation.responses).find(k => ['200', '201', '204'].includes(k)) || '200'}\`\n\n`
       }
     }
 
-    // Code Examples
-    const hasSpecExamples = operation['x-oaiMeta']?.examples?.request
+    // Generate concise, AI-friendly markdown
+    let markdown = `# ${endpointConfig.title}\n\n`
+
+    if (endpointConfig.description) {
+      markdown += `${endpointConfig.description}\n\n`
+    }
+
+    markdown += `**Endpoint:** \`${method} ${fullUrl}\`\n\n`
+
+    // Code Examples Section (FIRST - most important for AI)
+    const hasSpecExamples = operation?.['x-oaiMeta']?.examples?.request
     const hasGeneratedSamples = endpointConfig?.codeSamples && endpointConfig.codeSamples.length > 0
 
     if (hasSpecExamples || hasGeneratedSamples) {
-      markdown += `## Code Examples\n\n`
+      markdown += `## Example Code\n\n`
 
-      if (hasSpecExamples) {
-        const requestExamples = operation['x-oaiMeta'].examples.request
-
-        if (requestExamples.python) {
-          markdown += `### Python\n\n`
-          markdown += `\`\`\`python\n${requestExamples.python}\n\`\`\`\n\n`
+      // cURL first (most universal)
+      if (hasGeneratedSamples) {
+        const curlSample = endpointConfig.codeSamples.find((s: any) => s.language === 'curl')
+        if (curlSample) {
+          markdown += `### cURL\n\n\`\`\`bash\n${curlSample.code}\n\`\`\`\n\n`
         }
+      } else if (hasSpecExamples?.curl) {
+        markdown += `### cURL\n\n\`\`\`bash\n${hasSpecExamples.curl}\n\`\`\`\n\n`
+      }
 
-        if (requestExamples['node.js']) {
-          markdown += `### Node.js\n\n`
-          markdown += `\`\`\`javascript\n${requestExamples['node.js']}\n\`\`\`\n\n`
-        } else if (requestExamples.node) {
-          markdown += `### Node.js\n\n`
-          markdown += `\`\`\`javascript\n${requestExamples.node}\n\`\`\`\n\n`
+      // Python
+      if (hasGeneratedSamples) {
+        const pythonSample = endpointConfig.codeSamples.find((s: any) => s.language === 'python')
+        if (pythonSample) {
+          markdown += `### Python\n\n\`\`\`python\n${pythonSample.code}\n\`\`\`\n\n`
         }
+      } else if (hasSpecExamples?.python) {
+        markdown += `### Python\n\n\`\`\`python\n${hasSpecExamples.python}\n\`\`\`\n\n`
+      }
 
-        if (requestExamples.curl) {
-          markdown += `### cURL\n\n`
-          markdown += `\`\`\`bash\n${requestExamples.curl}\n\`\`\`\n\n`
+      // JavaScript/Node.js
+      if (hasGeneratedSamples) {
+        const jsSample = endpointConfig.codeSamples.find((s: any) => s.language === 'javascript')
+        if (jsSample) {
+          markdown += `### JavaScript\n\n\`\`\`javascript\n${jsSample.code}\n\`\`\`\n\n`
+        }
+      } else if (hasSpecExamples?.['node.js'] || hasSpecExamples?.node) {
+        const jsCode = hasSpecExamples['node.js'] || hasSpecExamples.node
+        markdown += `### JavaScript\n\n\`\`\`javascript\n${jsCode}\n\`\`\`\n\n`
+      }
+    }
+
+    // Example Response (SECOND - shows what to expect)
+    if (exampleResponse) {
+      markdown += `## Example Response\n\n`
+      markdown += `\`\`\`json\n${JSON.stringify(exampleResponse, null, 2)}\n\`\`\`\n\n`
+    }
+
+    // OpenAPI Excerpt (THIRD - for reference)
+    markdown += `## OpenAPI Specification\n\n`
+    const operationExcerpt: any = {
+      [path]: {
+        [method.toLowerCase()]: operation
+      }
+    }
+
+    // Include relevant schemas if they're referenced
+    const referencedSchemas: Record<string, any> = {}
+    const collectSchemaRefs = (obj: any) => {
+      if (!obj || typeof obj !== 'object') return
+
+      if (obj.$ref && typeof obj.$ref === 'string' && obj.$ref.startsWith('#/components/schemas/')) {
+        const schemaName = obj.$ref.replace('#/components/schemas/', '')
+        if (!referencedSchemas[schemaName]) {
+          const schemas = openApiSpec.components?.schemas as Record<string, any> | undefined
+          if (schemas?.[schemaName]) {
+            referencedSchemas[schemaName] = schemas[schemaName]
+            // Recursively collect nested refs
+            collectSchemaRefs(schemas[schemaName])
+          }
         }
       }
 
-      if (hasGeneratedSamples) {
-        for (const sample of endpointConfig.codeSamples) {
-          const lang = sample.language
-          const code = sample.code
-
-          if (lang === 'python') {
-            markdown += `### Python\n\n`
-            markdown += `\`\`\`python\n${code}\n\`\`\`\n\n`
-          } else if (lang === 'javascript') {
-            markdown += `### Node.js\n\n`
-            markdown += `\`\`\`javascript\n${code}\n\`\`\`\n\n`
-          } else if (lang === 'curl') {
-            markdown += `### cURL\n\n`
-            markdown += `\`\`\`bash\n${code}\n\`\`\`\n\n`
-          }
+      // Recurse into objects and arrays
+      for (const key in obj) {
+        if (typeof obj[key] === 'object') {
+          collectSchemaRefs(obj[key])
         }
       }
     }
 
-    navigator.clipboard.writeText(markdown)
+    collectSchemaRefs(operation)
+
+    const fullExcerpt: any = {
+      openapi: openApiSpec.openapi,
+      info: {
+        title: openApiSpec.info?.title,
+        version: openApiSpec.info?.version
+      },
+      servers: openApiSpec.servers,
+      paths: operationExcerpt
+    }
+
+    if (Object.keys(referencedSchemas).length > 0) {
+      fullExcerpt.components = {
+        schemas: referencedSchemas
+      }
+    }
+
+    // Add security schemes if used
+    if (operation?.security || openApiSpec.security) {
+      const securitySchemes = openApiSpec.components?.securitySchemes as Record<string, any> | undefined
+      if (securitySchemes) {
+        if (!fullExcerpt.components) fullExcerpt.components = {}
+        fullExcerpt.components.securitySchemes = securitySchemes
+        if (openApiSpec.security) {
+          fullExcerpt.security = openApiSpec.security
+        }
+      }
+    }
+
+    markdown += `\`\`\`yaml\n${JSON.stringify(fullExcerpt, null, 2)}\n\`\`\`\n\n`
+
+    try {
+      await navigator.clipboard.writeText(markdown)
+      toast({
+        title: "Copied for AI",
+        description: "Endpoint details and examples copied to clipboard.",
+        duration: 3000,
+      })
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err)
+      toast({
+        title: "Copy failed",
+        description: "Could not copy to clipboard. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      })
+    }
   }
 
   const docsUrl = extractDocsUrl(openApiSpec as any)
